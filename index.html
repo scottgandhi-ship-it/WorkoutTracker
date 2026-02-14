@@ -110,7 +110,6 @@
     .set-row:last-child { border-bottom: none; }
     .set-num { width: 28px; font-size: 13px; color: var(--muted); font-weight: 600; }
     .set-weight { flex: 1; font-size: 16px; font-weight: 600; }
-    .set-weight .plates { font-size: 11px; color: var(--muted); font-weight: 400; display: block; margin-top: 2px; }
     .set-reps { width: 50px; text-align: center; font-size: 14px; color: var(--muted); }
     .set-reps.amrap { color: var(--warning); font-weight: 700; }
     .amrap-input {
@@ -1028,7 +1027,6 @@ const App = (() => {
         <div class="set-num">${i + 1}</div>
         <div class="set-weight">
           ${s.weight} ${data.settings.units}
-          <span class="plates">${calcPlates(s.weight)}</span>
         </div>
         <div class="set-reps">${s.pct}% x ${s.reps}</div>
         <button class="set-check ${done ? 'done' : ''}" onclick="App.toggleSet('${wKey}',${i})">
@@ -1048,7 +1046,6 @@ const App = (() => {
         <div class="set-num">${i + 1}</div>
         <div class="set-weight">
           ${s.weight} ${data.settings.units}
-          <span class="plates">${calcPlates(s.weight)}</span>
         </div>
         <div class="set-reps ${s.isAmrap ? 'amrap' : ''}">${s.pct}% x ${s.reps}</div>
         ${s.isAmrap ? `<input type="text" inputmode="numeric" class="amrap-input"
@@ -1100,7 +1097,6 @@ const App = (() => {
           <div class="set-num">${i + 1}</div>
           <div class="set-weight">
             ${s.weight} ${data.settings.units}
-            <span class="plates">${calcPlates(s.weight)}</span>
           </div>
           <div class="set-reps">${s.pct}% x ${s.reps}</div>
           <button class="set-check ${done ? 'done' : ''}" onclick="App.toggleSupp('${wKey}',${i})">
