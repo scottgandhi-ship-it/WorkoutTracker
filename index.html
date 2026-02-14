@@ -144,6 +144,13 @@
     .acc-input.rp { width: 44px; }
     .acc-input.filled { background: #1a3a2a; border-color: var(--success); color: var(--success); }
     .acc-set-x { font-size: 11px; color: var(--muted); flex-shrink: 0; }
+    .acc-timer-btn {
+      width: 100%; height: 36px; border-radius: 8px; border: 1px solid var(--card-border);
+      background: var(--input-bg); color: var(--muted); font-size: 13px; font-weight: 600;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: all 0.2s; margin-top: 6px;
+    }
+    .acc-timer-btn:active { background: var(--accent-dim); color: #fff; border-color: var(--accent); }
     .acc-suggestion { font-size: 11px; color: var(--success); margin-top: 4px; font-weight: 600; }
 
     /* ===== HISTORY ===== */
@@ -187,17 +194,19 @@
     .inline-btns { display: flex; gap: 8px; margin-top: 12px; }
     .inline-btns .btn { flex: 1; }
 
-    /* ===== TIMER OVERLAY ===== */
+    /* ===== TIMER BANNER ===== */
     .timer-overlay {
-      display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.85); z-index: 200; flex-direction: column;
-      align-items: center; justify-content: center;
+      display: none; position: fixed; top: 0; left: 0; right: 0;
+      padding: calc(var(--safe-top) + 10px) 16px 10px;
+      background: #1a1a1a; border-bottom: 2px solid var(--accent);
+      z-index: 200; align-items: center; justify-content: center; gap: 14px;
     }
     .timer-overlay.show { display: flex; }
-    .timer-display { font-size: 72px; font-weight: 700; font-variant-numeric: tabular-nums; }
-    .timer-label { font-size: 16px; color: var(--muted); margin-bottom: 20px; }
-    .timer-btns { display: flex; gap: 12px; margin-top: 30px; }
-    .timer-btns .btn { width: 120px; }
+    body.timer-active .main-content { padding-top: 60px; }
+    .timer-display { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; min-width: 64px; text-align: center; }
+    .timer-label { display: none; }
+    .timer-btns { display: flex; gap: 8px; }
+    .timer-btns .btn { width: auto; padding: 6px 14px; font-size: 13px; }
 
     /* ===== WEEK SELECTOR ===== */
     .week-selector { display: flex; gap: 6px; margin-bottom: 16px; }
@@ -313,13 +322,12 @@
     </div>
   </div>
 
-  <!-- REST TIMER OVERLAY -->
+  <!-- REST TIMER BANNER -->
   <div class="timer-overlay" id="timerOverlay">
-    <div class="timer-label">Rest Timer</div>
     <div class="timer-display" id="timerDisplay">2:00</div>
     <div class="timer-btns">
-      <button class="btn btn-outline btn-sm" onclick="App.stopTimer()">Skip</button>
       <button class="btn btn-primary btn-sm" onclick="App.addTime(30)">+30s</button>
+      <button class="btn btn-outline btn-sm" onclick="App.stopTimer()">Skip</button>
     </div>
   </div>
 
@@ -911,6 +919,7 @@ const App = (() => {
   function startTimer(seconds = 120) {
     timerSeconds = seconds;
     document.getElementById('timerOverlay').classList.add('show');
+    document.body.classList.add('timer-active');
     updateTimerDisplay();
     clearInterval(timerInterval);
     timerInterval = setInterval(() => {
@@ -926,6 +935,7 @@ const App = (() => {
   function stopTimer() {
     clearInterval(timerInterval);
     document.getElementById('timerOverlay').classList.remove('show');
+    document.body.classList.remove('timer-active');
   }
 
   function addTime(sec) { timerSeconds += sec; updateTimerDisplay(); }
@@ -1141,7 +1151,7 @@ const App = (() => {
         html += `<div class="acc-set-row">
             <div class="acc-set-label">S${si + 1}</div>
             <input type="text" inputmode="decimal" class="acc-input wt ${filled}"
-                   value="${w || ''}" placeholder="lbs"
+                   value="${w || ''}"
                    onchange="App.setAccWeight('${wKey}',${ai},${si},this.value)" onfocus="this.select()">
             <div class="acc-set-x">x</div>
             <input type="text" inputmode="numeric" class="acc-input rp ${r > 0 ? 'filled' : ''}"
@@ -1150,6 +1160,7 @@ const App = (() => {
           </div>`;
       }
       html += `</div>`;
+      html += `<button class="acc-timer-btn" onclick="App.startTimer(90)">Rest 90s</button>`;
       if (suggestion) {
         html += `<div class="acc-suggestion">${suggestion}</div>`;
       }
