@@ -1,0 +1,1514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="531 Tracker">
+  <meta name="theme-color" content="#0f0f0f">
+  <link rel="manifest" href="manifest.json">
+  <title>531 Tracker</title>
+  <style>
+    /* ===== RESET & BASE ===== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0f0f0f; --card: #1a1a1a; --card-border: #2a2a2a;
+      --accent: #4f8cff; --accent-dim: #2a5db8; --success: #34d399;
+      --warning: #fbbf24; --danger: #f87171; --text: #f5f5f5;
+      --muted: #888; --input-bg: #252525;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    html, body { height: 100%; overflow: hidden; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro', 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg); color: var(--text); font-size: 15px;
+      -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent;
+    }
+
+    /* ===== APP SHELL ===== */
+    .app { display: flex; flex-direction: column; height: 100%; }
+    .header {
+      padding: calc(var(--safe-top) + 12px) 16px 12px;
+      background: var(--card); border-bottom: 1px solid var(--card-border);
+      display: flex; justify-content: space-between; align-items: center;
+      flex-shrink: 0;
+    }
+    .header h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.5px; }
+    .header .cycle-badge {
+      font-size: 13px; background: var(--accent-dim); color: var(--accent);
+      padding: 4px 10px; border-radius: 20px; font-weight: 600;
+    }
+    .main-content {
+      flex: 1; overflow-y: auto; overflow-x: hidden;
+      padding: 16px 16px calc(var(--safe-bottom) + 70px);
+      -webkit-overflow-scrolling: touch;
+    }
+    .tab-bar {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: var(--card); border-top: 1px solid var(--card-border);
+      display: flex; padding-bottom: var(--safe-bottom);
+      z-index: 100; flex-shrink: 0;
+    }
+    .tab-btn {
+      flex: 1; display: flex; flex-direction: column; align-items: center;
+      padding: 8px 0; border: none; background: none; color: var(--muted);
+      font-size: 10px; font-weight: 600; cursor: pointer; transition: color 0.2s;
+    }
+    .tab-btn.active { color: var(--accent); }
+    .tab-btn svg { width: 24px; height: 24px; margin-bottom: 2px; }
+    .view { display: none; }
+    .view.active { display: block; }
+
+    /* ===== COMMON COMPONENTS ===== */
+    .card {
+      background: var(--card); border: 1px solid var(--card-border);
+      border-radius: 12px; padding: 16px; margin-bottom: 12px;
+    }
+    .card-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin-bottom: 10px; }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      padding: 12px 20px; border-radius: 10px; border: none; font-size: 15px;
+      font-weight: 600; cursor: pointer; transition: all 0.2s; width: 100%;
+    }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:active { background: var(--accent-dim); transform: scale(0.98); }
+    .btn-success { background: var(--success); color: #000; }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .btn-outline { background: none; border: 1px solid var(--card-border); color: var(--text); }
+    .btn-sm { padding: 8px 14px; font-size: 13px; width: auto; }
+    input[type="number"], input[type="text"], select {
+      background: var(--input-bg); border: 1px solid var(--card-border); color: var(--text);
+      border-radius: 8px; padding: 10px 12px; font-size: 15px; width: 100%;
+      -webkit-appearance: none; appearance: none;
+    }
+    input[type="number"]:focus, input[type="text"]:focus, select:focus {
+      outline: none; border-color: var(--accent);
+    }
+    input[type="number"] { text-align: center; }
+    select { cursor: pointer; }
+
+    /* ===== DAY SELECTOR ===== */
+    .day-selector { display: flex; gap: 6px; margin-bottom: 16px; }
+    .day-btn {
+      flex: 1; padding: 10px 4px; border: 1px solid var(--card-border);
+      border-radius: 10px; background: var(--card); color: var(--text);
+      font-size: 11px; font-weight: 600; text-align: center; cursor: pointer;
+      transition: all 0.2s; line-height: 1.3;
+    }
+    .day-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .day-btn .day-num { font-size: 13px; font-weight: 700; display: block; }
+
+    /* ===== SETS TABLE ===== */
+    .sets-section { margin-top: 12px; }
+    .sets-label { font-size: 12px; font-weight: 700; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; letter-spacing: 0.5px; }
+    .set-row {
+      display: flex; align-items: center; padding: 10px 0;
+      border-bottom: 1px solid var(--card-border);
+    }
+    .set-row:last-child { border-bottom: none; }
+    .set-num { width: 28px; font-size: 13px; color: var(--muted); font-weight: 600; }
+    .set-weight { flex: 1; font-size: 16px; font-weight: 600; }
+    .set-weight .plates { font-size: 11px; color: var(--muted); font-weight: 400; display: block; margin-top: 2px; }
+    .set-reps { width: 50px; text-align: center; font-size: 14px; color: var(--muted); }
+    .set-reps.amrap { color: var(--warning); font-weight: 700; }
+    .amrap-input {
+      width: 56px; padding: 6px; text-align: center; font-size: 16px;
+      font-weight: 700; background: var(--input-bg); border: 2px solid var(--warning);
+      border-radius: 8px; color: var(--warning);
+    }
+    .set-check {
+      width: 36px; height: 36px; border-radius: 8px; border: 2px solid var(--card-border);
+      background: none; color: var(--text); display: flex; align-items: center;
+      justify-content: center; cursor: pointer; transition: all 0.2s; flex-shrink: 0;
+      margin-left: 8px;
+    }
+    .set-check.done { background: var(--success); border-color: var(--success); color: #000; }
+
+    /* ===== ACCESSORY SECTION ===== */
+    .acc-item { margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--card-border); }
+    .acc-item:last-child { border-bottom: none; }
+    .acc-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+    .acc-name { font-size: 14px; font-weight: 600; }
+    .acc-target { font-size: 12px; color: var(--muted); }
+    .acc-last { font-size: 12px; color: var(--accent); margin-top: 2px; }
+    .acc-inputs { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .acc-inputs label { font-size: 12px; color: var(--muted); font-weight: 600; }
+    .acc-inputs input { width: 64px; padding: 8px; font-size: 14px; }
+    .acc-set-reps { display: flex; gap: 4px; margin-top: 6px; align-items: center; }
+    .acc-rep-btn {
+      width: 44px; height: 36px; border-radius: 6px; border: 1px solid var(--card-border);
+      background: var(--input-bg); color: var(--text); font-size: 13px; font-weight: 600;
+      text-align: center; padding: 0 4px;
+    }
+    .acc-rep-btn.filled { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+    .acc-suggestion { font-size: 11px; color: var(--success); margin-top: 4px; font-weight: 600; }
+
+    /* ===== HISTORY ===== */
+    .history-item { cursor: pointer; transition: background 0.2s; }
+    .history-item:active { background: var(--input-bg); }
+    .history-header { display: flex; justify-content: space-between; align-items: center; }
+    .history-date { font-size: 13px; color: var(--muted); }
+    .history-day { font-size: 15px; font-weight: 600; margin-top: 2px; }
+    .history-lift { font-size: 14px; color: var(--accent); margin-top: 4px; }
+    .history-detail { display: none; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--card-border); font-size: 13px; }
+    .history-detail.open { display: block; }
+    .pr-badge { display: inline-block; background: var(--warning); color: #000; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; margin-left: 6px; }
+
+    /* ===== PROGRESS ===== */
+    .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+    .stat-card { text-align: center; }
+    .stat-card .stat-value { font-size: 28px; font-weight: 700; color: var(--accent); }
+    .stat-card .stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; font-weight: 600; margin-top: 2px; }
+    .projection-table { width: 100%; font-size: 13px; border-collapse: collapse; }
+    .projection-table th {
+      text-align: left; padding: 8px; font-size: 11px; text-transform: uppercase;
+      color: var(--muted); border-bottom: 1px solid var(--card-border); font-weight: 700;
+    }
+    .projection-table td { padding: 8px; border-bottom: 1px solid var(--card-border); }
+    .projection-table tr:last-child td { border-bottom: none; }
+    .trend-up { color: var(--success); }
+    .trend-same { color: var(--muted); }
+    .chart-container { position: relative; width: 100%; margin-bottom: 8px; }
+    .chart-container canvas { width: 100%; height: 280px; display: block; border-radius: 8px; }
+    .chart-legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px; justify-content: center; }
+    .chart-legend-item { display: flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; }
+    .chart-legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+    /* ===== SETTINGS ===== */
+    .setting-group { margin-bottom: 20px; }
+    .setting-label { font-size: 13px; font-weight: 600; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; }
+    .setting-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .setting-row label { flex: 1; font-size: 14px; }
+    .setting-row input { width: 80px; }
+    .setting-row select { width: 120px; }
+    .inline-btns { display: flex; gap: 8px; margin-top: 12px; }
+    .inline-btns .btn { flex: 1; }
+
+    /* ===== TIMER OVERLAY ===== */
+    .timer-overlay {
+      display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.85); z-index: 200; flex-direction: column;
+      align-items: center; justify-content: center;
+    }
+    .timer-overlay.show { display: flex; }
+    .timer-display { font-size: 72px; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .timer-label { font-size: 16px; color: var(--muted); margin-bottom: 20px; }
+    .timer-btns { display: flex; gap: 12px; margin-top: 30px; }
+    .timer-btns .btn { width: 120px; }
+
+    /* ===== WEEK SELECTOR ===== */
+    .week-selector { display: flex; gap: 6px; margin-bottom: 16px; }
+    .week-btn {
+      flex: 1; padding: 8px; border: 1px solid var(--card-border);
+      border-radius: 8px; background: var(--card); color: var(--text);
+      font-size: 12px; font-weight: 600; text-align: center; cursor: pointer;
+    }
+    .week-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .week-btn.done { background: var(--success); border-color: var(--success); color: #000; opacity: 0.7; }
+
+    /* ===== MODAL ===== */
+    .modal-overlay {
+      display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.7); z-index: 300; align-items: center;
+      justify-content: center; padding: 20px;
+    }
+    .modal-overlay.show { display: flex; }
+    .modal { background: var(--card); border-radius: 16px; padding: 24px; width: 100%; max-width: 360px; }
+    .modal h3 { font-size: 18px; margin-bottom: 16px; }
+    .modal .btn { margin-top: 10px; }
+
+    /* ===== EMPTY STATE ===== */
+    .empty-state { text-align: center; padding: 40px 20px; color: var(--muted); }
+    .empty-state svg { width: 48px; height: 48px; margin-bottom: 12px; opacity: 0.3; }
+    .empty-state p { font-size: 14px; }
+
+    /* ===== MISC ===== */
+    .divider { height: 1px; background: var(--card-border); margin: 16px 0; }
+    .text-muted { color: var(--muted); }
+    .text-accent { color: var(--accent); }
+    .text-success { color: var(--success); }
+    .text-warning { color: var(--warning); }
+    .text-sm { font-size: 13px; }
+    .text-xs { font-size: 11px; }
+    .mt-8 { margin-top: 8px; }
+    .mt-12 { margin-top: 12px; }
+    .mb-8 { margin-bottom: 8px; }
+    .mb-16 { margin-bottom: 16px; }
+    .fw-700 { font-weight: 700; }
+    .flex-between { display: flex; justify-content: space-between; align-items: center; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <!-- HEADER -->
+    <div class="header">
+      <h1>531 Tracker</h1>
+      <div class="cycle-badge" id="cycleBadge">W1 / C1</div>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div class="main-content" id="mainContent">
+
+      <!-- ===== WORKOUT VIEW ===== -->
+      <div class="view active" id="viewWorkout">
+        <div class="week-selector" id="weekSelector"></div>
+        <div class="day-selector" id="daySelector"></div>
+        <div id="workoutContent"></div>
+      </div>
+
+      <!-- ===== HISTORY VIEW ===== -->
+      <div class="view" id="viewHistory">
+        <div id="historyContent"></div>
+      </div>
+
+      <!-- ===== PROGRESS VIEW ===== -->
+      <div class="view" id="viewProgress">
+        <div id="progressContent"></div>
+      </div>
+
+      <!-- ===== SETTINGS VIEW ===== -->
+      <div class="view" id="viewSettings">
+        <div id="settingsContent"></div>
+      </div>
+    </div>
+
+    <!-- TAB BAR -->
+    <div class="tab-bar">
+      <button class="tab-btn active" data-tab="viewWorkout">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 6.5h11M6 12h12M6.5 17.5h11"/><circle cx="4" cy="6.5" r="1.5"/><circle cx="4" cy="12" r="1.5"/><circle cx="4" cy="17.5" r="1.5"/></svg>
+        Workout
+      </button>
+      <button class="tab-btn" data-tab="viewHistory">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="9"/></svg>
+        History
+      </button>
+      <button class="tab-btn" data-tab="viewProgress">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        Progress
+      </button>
+      <button class="tab-btn" data-tab="viewSettings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+        Settings
+      </button>
+    </div>
+  </div>
+
+  <!-- REST TIMER OVERLAY -->
+  <div class="timer-overlay" id="timerOverlay">
+    <div class="timer-label">Rest Timer</div>
+    <div class="timer-display" id="timerDisplay">2:00</div>
+    <div class="timer-btns">
+      <button class="btn btn-outline btn-sm" onclick="App.stopTimer()">Skip</button>
+      <button class="btn btn-primary btn-sm" onclick="App.addTime(30)">+30s</button>
+    </div>
+  </div>
+
+  <!-- MODAL -->
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal" id="modalContent"></div>
+  </div>
+
+<script>
+// ================================================================
+//  531 WORKOUT TRACKER - Complete Application
+// ================================================================
+
+const App = (() => {
+  'use strict';
+
+  // ===== 5/3/1 SCHEME =====
+  const SCHEME = {
+    1: [{ pct: 0.65, reps: 5 }, { pct: 0.75, reps: 5 }, { pct: 0.85, reps: '5+' }],
+    2: [{ pct: 0.70, reps: 3 }, { pct: 0.80, reps: 3 }, { pct: 0.90, reps: '3+' }],
+    3: [{ pct: 0.75, reps: 5 }, { pct: 0.85, reps: 3 }, { pct: 0.95, reps: '1+' }],
+    4: [{ pct: 0.40, reps: 5 }, { pct: 0.50, reps: 5 }, { pct: 0.60, reps: 5 }],
+  };
+  const WARMUP = [{ pct: 0.40, reps: 5 }, { pct: 0.50, reps: 5 }, { pct: 0.60, reps: 3 }];
+  const PLATES = [45, 25, 10, 5, 2.5];
+  const BAR_WEIGHT = 45;
+
+  // ===== DEFAULT DATA =====
+  const DEFAULT_DATA = {
+    version: 2,
+    settings: { units: 'lbs', includeDeload: false },
+    lifts: {
+      bench:      { name: 'Bench Press',       tm: 240, type: 'upper' },
+      frontSquat: { name: 'Front Squat',       tm: 195, type: 'lower' },
+      ohp:        { name: 'Overhead Press',     tm: 155, type: 'upper' },
+      rdl:        { name: 'Romanian Deadlift', tm: 210, type: 'lower' },
+    },
+    currentCycle: 1,
+    currentWeek: 1,
+    selectedDay: 0,
+    days: [
+      {
+        name: 'Chest & Triceps', mainLift: 'bench',
+        accessories: [
+          { name: 'Neutral-Grip DB Bench',         sets: 4, repsLow: 8,  repsHigh: 12, lastWeight: 0, lastReps: [] },
+          { name: 'Landmine Incline Press',         sets: 3, repsLow: 10, repsHigh: 12, lastWeight: 0, lastReps: [] },
+          { name: 'Cable / Pec-Deck Flyes',         sets: 4, repsLow: 12, repsHigh: 15, lastWeight: 0, lastReps: [] },
+          { name: 'OH DB / Cable Triceps Ext.',     sets: 4, repsLow: 10, repsHigh: 12, lastWeight: 0, lastReps: [] },
+          { name: 'Triceps Pushdowns',               sets: 3, repsLow: 12, repsHigh: 15, lastWeight: 0, lastReps: [] },
+        ]
+      },
+      {
+        name: 'Legs & Abs', mainLift: 'frontSquat',
+        accessories: [
+          { name: 'Step Ups',                sets: 4, repsLow: 12, repsHigh: 15, lastWeight: 0, lastReps: [] },
+          { name: 'Hip Thrusts',             sets: 3, repsLow: 10, repsHigh: 10, lastWeight: 0, lastReps: [] },
+          { name: 'Leg Curls (Seated/Lying)',sets: 4, repsLow: 12, repsHigh: 15, lastWeight: 0, lastReps: [] },
+          { name: 'Standing Calf Raises',    sets: 3, repsLow: 12, repsHigh: 15, lastWeight: 0, lastReps: [] },
+          { name: 'Cable / Weighted Crunches',sets: 4, repsLow: 12, repsHigh: 15, lastWeight: 0, lastReps: [] },
+        ]
+      },
+      {
+        name: 'Shoulders & Biceps', mainLift: 'ohp',
+        accessories: [
+          { name: 'Landmine Press',               sets: 4, repsLow: 10, repsHigh: 12, lastWeight: 0, lastReps: [] },
+          { name: 'DB Lateral Raises',             sets: 4, repsLow: 12, repsHigh: 15, lastWeight: 0, lastReps: [] },
+          { name: 'Cable / DB Rear Delt Flyes',   sets: 3, repsLow: 15, repsHigh: 15, lastWeight: 0, lastReps: [] },
+          { name: 'Behind-the-Body Cable Curls',  sets: 4, repsLow: 12, repsHigh: 15, lastWeight: 0, lastReps: [] },
+          { name: 'Hammer Curls',                   sets: 3, repsLow: 12, repsHigh: 15, lastWeight: 0, lastReps: [] },
+        ]
+      },
+      {
+        name: 'Back', mainLift: 'rdl',
+        accessories: [
+          { name: 'Chest-Supported Row',            sets: 4, repsLow: 8,  repsHigh: 12, lastWeight: 0, lastReps: [] },
+          { name: 'Lat Pulldown / Neutral Pull-ups',sets: 4, repsLow: 10, repsHigh: 12, lastWeight: 0, lastReps: [] },
+          { name: 'Rope Rows (per side)',            sets: 2, repsLow: 15, repsHigh: 15, lastWeight: 0, lastReps: [] },
+          { name: 'DB Shrugs (2s squeeze)',          sets: 4, repsLow: 10, repsHigh: 12, lastWeight: 0, lastReps: [] },
+          { name: 'Abs',                              sets: 3, repsLow: 12, repsHigh: 15, lastWeight: 0, lastReps: [] },
+        ]
+      },
+    ],
+    log: [],
+    tmHistory: [],
+  };
+
+  // ===== STATE =====
+  let data = {};
+  let timerInterval = null;
+  let timerSeconds = 0;
+  let workoutInProgress = {};
+
+  // ===== STORAGE =====
+  function save() { localStorage.setItem('531tracker', JSON.stringify(data)); }
+  function load() {
+    const raw = localStorage.getItem('531tracker');
+    if (raw) {
+      data = JSON.parse(raw);
+      if (!data.version || data.version < 2) {
+        data = { ...DEFAULT_DATA, ...data, version: 2 };
+      }
+    } else {
+      data = JSON.parse(JSON.stringify(DEFAULT_DATA));
+      data.tmHistory.push({
+        date: new Date().toISOString().slice(0, 10),
+        bench: 240, frontSquat: 195, ohp: 155, rdl: 210, cycle: 1
+      });
+      save();
+    }
+  }
+
+  // ===== CALCULATIONS =====
+  function roundWeight(w) { return Math.round(w / 5) * 5; }
+
+  function calcPlates(totalWeight) {
+    if (totalWeight <= BAR_WEIGHT) return 'Bar only';
+    let perSide = (totalWeight - BAR_WEIGHT) / 2;
+    const plates = [];
+    for (const p of PLATES) {
+      while (perSide >= p) { plates.push(p); perSide -= p; }
+    }
+    if (plates.length === 0) return 'Bar only';
+    return plates.join(' + ');
+  }
+
+  function getWorkingSets(tm, week) {
+    return SCHEME[week].map(s => ({
+      weight: roundWeight(tm * s.pct),
+      reps: s.reps,
+      pct: Math.round(s.pct * 100),
+      isAmrap: typeof s.reps === 'string' && s.reps.includes('+'),
+    }));
+  }
+
+  function getWarmupSets(tm) {
+    return WARMUP.map(s => ({
+      weight: roundWeight(tm * s.pct),
+      reps: s.reps,
+      pct: Math.round(s.pct * 100),
+    }));
+  }
+
+  function estimate1RM(weight, reps) {
+    if (reps <= 0) return 0;
+    if (reps === 1) return weight;
+    return Math.round(weight * (1 + reps / 30));
+  }
+
+  function project1RM(current1RM, liftType, months) {
+    // Each cycle ~3 weeks, upper +5/cycle, lower +10/cycle
+    // TM is ~90% of 1RM, so 1RM increase is slightly more
+    const weeksPerCycle = data.settings.includeDeload ? 4 : 3;
+    const cycles = Math.floor((months * 4.33) / weeksPerCycle);
+    const tmIncrease = liftType === 'upper' ? 5 * cycles : 10 * cycles;
+    // 1RM increase proportional: if TM goes up X, 1RM goes up X/0.9
+    return Math.round(current1RM + tmIncrease / 0.9);
+  }
+
+  function getEstimated1RMs() {
+    const results = {};
+    for (const [key, lift] of Object.entries(data.lifts)) {
+      // Find most recent AMRAP for this lift
+      let best = { e1rm: Math.round(lift.tm / 0.9), weight: 0, reps: 0, date: null };
+      for (let i = data.log.length - 1; i >= 0; i--) {
+        const entry = data.log[i];
+        if (entry.mainLift && entry.mainLift.liftKey === key && entry.mainLift.amrapReps > 0) {
+          const amrapSet = entry.mainLift.sets.find(s => s.isAmrap);
+          if (amrapSet) {
+            const e1rm = estimate1RM(amrapSet.weight, entry.mainLift.amrapReps);
+            if (e1rm > best.e1rm || !best.date) {
+              best = { e1rm, weight: amrapSet.weight, reps: entry.mainLift.amrapReps, date: entry.date };
+            }
+          }
+          if (!best.date) best.date = entry.date;
+          break; // use most recent
+        }
+      }
+      results[key] = { ...lift, ...best };
+    }
+    return results;
+  }
+
+  function getProgressionRate() {
+    if (data.tmHistory.length < 2) return null;
+    const first = data.tmHistory[0];
+    const last = data.tmHistory[data.tmHistory.length - 1];
+    const daysBetween = (new Date(last.date) - new Date(first.date)) / (1000 * 60 * 60 * 24);
+    if (daysBetween < 7) return null;
+    const monthsBetween = daysBetween / 30.44;
+    const rates = {};
+    for (const key of Object.keys(data.lifts)) {
+      if (first[key] !== undefined && last[key] !== undefined) {
+        rates[key] = (last[key] - first[key]) / monthsBetween;
+      }
+    }
+    return { rates, months: monthsBetween };
+  }
+
+  // ===== TIMER =====
+  function startTimer(seconds = 120) {
+    timerSeconds = seconds;
+    document.getElementById('timerOverlay').classList.add('show');
+    updateTimerDisplay();
+    clearInterval(timerInterval);
+    timerInterval = setInterval(() => {
+      timerSeconds--;
+      updateTimerDisplay();
+      if (timerSeconds <= 0) {
+        stopTimer();
+        if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+      }
+    }, 1000);
+  }
+
+  function stopTimer() {
+    clearInterval(timerInterval);
+    document.getElementById('timerOverlay').classList.remove('show');
+  }
+
+  function addTime(sec) { timerSeconds += sec; updateTimerDisplay(); }
+
+  function updateTimerDisplay() {
+    const m = Math.floor(Math.abs(timerSeconds) / 60);
+    const s = Math.abs(timerSeconds) % 60;
+    const prefix = timerSeconds < 0 ? '-' : '';
+    document.getElementById('timerDisplay').textContent = `${prefix}${m}:${s.toString().padStart(2, '0')}`;
+    document.getElementById('timerDisplay').style.color = timerSeconds <= 0 ? '#f87171' : '#f5f5f5';
+  }
+
+  // ===== UI RENDERING =====
+  function render() {
+    renderCycleBadge();
+    renderWeekSelector();
+    renderDaySelector();
+    renderWorkout();
+  }
+
+  function renderCycleBadge() {
+    document.getElementById('cycleBadge').textContent = `W${data.currentWeek} / C${data.currentCycle}`;
+  }
+
+  function renderWeekSelector() {
+    const cont = document.getElementById('weekSelector');
+    const weeks = data.settings.includeDeload ? [1,2,3,4] : [1,2,3];
+    const labels = { 1: 'Week 1 (5s)', 2: 'Week 2 (3s)', 3: 'Week 3 (1s)', 4: 'Deload' };
+    cont.innerHTML = weeks.map(w => `
+      <button class="week-btn ${w === data.currentWeek ? 'active' : ''}"
+              onclick="App.setWeek(${w})">${labels[w]}</button>
+    `).join('');
+  }
+
+  function renderDaySelector() {
+    const cont = document.getElementById('daySelector');
+    cont.innerHTML = data.days.map((day, i) => `
+      <button class="day-btn ${i === data.selectedDay ? 'active' : ''}"
+              onclick="App.selectDay(${i})">
+        <span class="day-num">Day ${i + 1}</span>
+        ${day.name.split(' & ')[0]}
+      </button>
+    `).join('');
+  }
+
+  function renderWorkout() {
+    const cont = document.getElementById('workoutContent');
+    const day = data.days[data.selectedDay];
+    const lift = data.lifts[day.mainLift];
+    const warmup = getWarmupSets(lift.tm);
+    const working = getWorkingSets(lift.tm, data.currentWeek);
+
+    // Initialize workout tracking state if needed
+    const wKey = `${data.currentCycle}-${data.currentWeek}-${data.selectedDay}`;
+    if (!workoutInProgress[wKey]) {
+      workoutInProgress[wKey] = {
+        setsCompleted: new Array(warmup.length + working.length).fill(false),
+        amrapReps: '',
+        accWeights: day.accessories.map(a => a.lastWeight || 0),
+        accReps: day.accessories.map(a => {
+          const mid = Math.round((a.repsLow + a.repsHigh) / 2);
+          return new Array(a.sets).fill(a.lastReps && a.lastReps.length ? 0 : mid);
+        }),
+      };
+    }
+    const wp = workoutInProgress[wKey];
+
+    let html = '';
+
+    // Main Lift Card
+    html += `<div class="card">
+      <div class="flex-between mb-8">
+        <div>
+          <div class="card-title">${data.currentWeek === 4 ? 'Deload' : 'Main Lift'}</div>
+          <div style="font-size:18px;font-weight:700">${lift.name}</div>
+        </div>
+        <div style="text-align:right">
+          <div class="text-xs text-muted">Training Max</div>
+          <div style="font-size:18px;font-weight:700;color:var(--accent)">${lift.tm} ${data.settings.units}</div>
+        </div>
+      </div>`;
+
+    // Warmup
+    html += `<div class="sets-section">
+      <div class="sets-label">Warmup</div>`;
+    warmup.forEach((s, i) => {
+      const done = wp.setsCompleted[i];
+      html += `<div class="set-row">
+        <div class="set-num">${i + 1}</div>
+        <div class="set-weight">
+          ${s.weight} ${data.settings.units}
+          <span class="plates">${calcPlates(s.weight)}</span>
+        </div>
+        <div class="set-reps">${s.pct}% x ${s.reps}</div>
+        <button class="set-check ${done ? 'done' : ''}" onclick="App.toggleSet('${wKey}',${i})">
+          ${done ? '&#10003;' : ''}
+        </button>
+      </div>`;
+    });
+    html += `</div>`;
+
+    // Working Sets
+    html += `<div class="sets-section" style="margin-top:16px">
+      <div class="sets-label">Working Sets</div>`;
+    working.forEach((s, i) => {
+      const idx = warmup.length + i;
+      const done = wp.setsCompleted[idx];
+      html += `<div class="set-row">
+        <div class="set-num">${i + 1}</div>
+        <div class="set-weight">
+          ${s.weight} ${data.settings.units}
+          <span class="plates">${calcPlates(s.weight)}</span>
+        </div>
+        <div class="set-reps ${s.isAmrap ? 'amrap' : ''}">${s.pct}% x ${s.reps}</div>
+        ${s.isAmrap ? `<input type="number" class="amrap-input" placeholder="${s.reps}"
+          value="${wp.amrapReps}" min="0" max="30"
+          onchange="App.setAmrap('${wKey}',this.value)"
+          onfocus="this.select()">` : ''}
+        <button class="set-check ${done ? 'done' : ''}" onclick="App.toggleSet('${wKey}',${idx})">
+          ${done ? '&#10003;' : ''}
+        </button>
+      </div>`;
+    });
+    html += `</div></div>`;
+
+    // AMRAP Estimate
+    if (wp.amrapReps && parseInt(wp.amrapReps) > 0) {
+      const amrapSet = working.find(s => s.isAmrap);
+      if (amrapSet) {
+        const e1rm = estimate1RM(amrapSet.weight, parseInt(wp.amrapReps));
+        html += `<div class="card" style="border-color:var(--warning)">
+          <div class="flex-between">
+            <div>
+              <div class="text-xs text-muted">Estimated 1RM from this set</div>
+              <div style="font-size:22px;font-weight:700;color:var(--warning)">${e1rm} ${data.settings.units}</div>
+            </div>
+            <div style="text-align:right">
+              <div class="text-xs text-muted">Based on</div>
+              <div class="text-sm">${amrapSet.weight} x ${wp.amrapReps}</div>
+            </div>
+          </div>
+        </div>`;
+      }
+    }
+
+    // Accessories
+    html += `<div class="card">
+      <div class="card-title">Accessories</div>`;
+    day.accessories.forEach((acc, ai) => {
+      const repsLabel = acc.repsLow === acc.repsHigh ? acc.repsLow : `${acc.repsLow}-${acc.repsHigh}`;
+      const suggestion = getAccSuggestion(acc);
+      html += `<div class="acc-item">
+        <div class="acc-header">
+          <div>
+            <div class="acc-name">${acc.name}</div>
+            ${acc.lastWeight > 0 ? `<div class="acc-last">Last: ${acc.lastWeight} lbs</div>` : ''}
+          </div>
+          <div class="acc-target">${acc.sets} x ${repsLabel}</div>
+        </div>
+        <div class="acc-inputs">
+          <label>Weight:</label>
+          <input type="text" inputmode="decimal" value="${wp.accWeights[ai] || ''}" placeholder="lbs"
+                 onchange="App.setAccWeight('${wKey}',${ai},this.value)" onfocus="this.select()">
+        </div>
+        <div class="acc-set-reps" id="accReps_${ai}">
+          <span class="text-xs text-muted" style="align-self:center;margin-right:2px">Reps:</span>`;
+      for (let si = 0; si < acc.sets; si++) {
+        const r = wp.accReps[ai][si] || 0;
+        html += `<input type="text" inputmode="numeric" class="acc-rep-btn ${r > 0 ? 'filled' : ''}"
+                   value="${r || ''}" placeholder="${repsLabel}"
+                   onchange="App.setAccRep('${wKey}',${ai},${si},this.value)" onfocus="this.select()">`;
+      }
+      html += `</div>`;
+      if (suggestion) {
+        html += `<div class="acc-suggestion">${suggestion}</div>`;
+      }
+      html += `</div>`;
+    });
+    html += `</div>`;
+
+    // Log Workout Button
+    html += `<button class="btn btn-success" onclick="App.logWorkout('${wKey}')" style="margin-top:8px">
+      Log Workout
+    </button>`;
+
+    // Rest Timer button
+    html += `<div class="inline-btns" style="margin-top:8px">
+      <button class="btn btn-outline btn-sm" onclick="App.startTimer(90)">Rest 1:30</button>
+      <button class="btn btn-outline btn-sm" onclick="App.startTimer(120)">Rest 2:00</button>
+      <button class="btn btn-outline btn-sm" onclick="App.startTimer(180)">Rest 3:00</button>
+    </div>`;
+
+    cont.innerHTML = html;
+  }
+
+  function getAccSuggestion(acc) {
+    if (!acc.lastWeight || acc.lastWeight <= 0 || !acc.lastReps || acc.lastReps.length === 0) return null;
+    const allAtTop = acc.lastReps.every(r => r >= acc.repsHigh);
+    if (allAtTop) {
+      const newWeight = acc.lastWeight + 5;
+      return `Hit all top-range reps last time. Try ${newWeight} lbs this session.`;
+    }
+    return null;
+  }
+
+  function renderHistory() {
+    const cont = document.getElementById('historyContent');
+    if (data.log.length === 0) {
+      cont.innerHTML = `<div class="empty-state">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="9"/></svg>
+        <p>No workouts logged yet.<br>Complete a workout to see your history.</p>
+      </div>`;
+      return;
+    }
+
+    let html = '<div class="card-title">Workout History</div>';
+    const sorted = [...data.log].reverse();
+    sorted.forEach((entry, idx) => {
+      const day = data.days[entry.dayIndex] || { name: 'Unknown' };
+      const topSet = entry.mainLift ? entry.mainLift.sets[entry.mainLift.sets.length - 1] : null;
+      const amrap = entry.mainLift ? entry.mainLift.amrapReps : 0;
+      const liftName = entry.mainLift ? (data.lifts[entry.mainLift.liftKey] || {}).name || '' : '';
+      const e1rm = topSet && amrap > 0 ? estimate1RM(topSet.weight, amrap) : null;
+
+      html += `<div class="card history-item" onclick="App.toggleHistory(${idx})">
+        <div class="history-header">
+          <div>
+            <div class="history-date">${formatDate(entry.date)}</div>
+            <div class="history-day">${day.name}</div>
+            ${topSet ? `<div class="history-lift">${liftName}: ${topSet.weight} x ${amrap || topSet.reps}${e1rm ? ` (e1RM: ${e1rm})` : ''}</div>` : ''}
+          </div>
+          <div class="cycle-badge" style="font-size:11px">W${entry.week}/C${entry.cycle}</div>
+        </div>
+        <div class="history-detail" id="histDetail_${idx}">
+          ${renderHistoryDetail(entry)}
+        </div>
+      </div>`;
+    });
+    cont.innerHTML = html;
+  }
+
+  function renderHistoryDetail(entry) {
+    let html = '';
+    if (entry.mainLift) {
+      html += '<div class="mb-8"><strong>Main Lift Sets:</strong></div>';
+      entry.mainLift.sets.forEach((s, i) => {
+        html += `<div class="text-sm" style="margin-left:8px">${i + 1}. ${s.weight} x ${s.isAmrap ? entry.mainLift.amrapReps || s.reps : s.reps}</div>`;
+      });
+    }
+    if (entry.accessories && entry.accessories.length > 0) {
+      html += '<div class="mt-8 mb-8"><strong>Accessories:</strong></div>';
+      entry.accessories.forEach(a => {
+        if (a.weight > 0 || a.reps.some(r => r > 0)) {
+          html += `<div class="text-sm" style="margin-left:8px">${a.name}: ${a.weight} lbs - ${a.reps.join(', ')} reps</div>`;
+        }
+      });
+    }
+    return html;
+  }
+
+  // ===== CHART DRAWING =====
+  const LIFT_COLORS = {
+    bench: '#4f8cff',
+    frontSquat: '#34d399',
+    ohp: '#fbbf24',
+    rdl: '#f87171',
+  };
+
+  function drawProjectionChart(canvasId) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.scale(dpr, dpr);
+    const W = rect.width;
+    const H = rect.height;
+
+    const e1rms = getEstimated1RMs();
+    const liftKeys = Object.keys(data.lifts);
+
+    // Build data: past TM history points + future projections
+    // Months on X-axis: past history + 9 months into future
+    const now = new Date();
+    const timePoints = [0, 3, 6, 9]; // months from now for projections
+
+    // Collect all TM history dates as months-from-now (negative = past)
+    const historyMonths = data.tmHistory.map(h => {
+      const d = new Date(h.date + 'T12:00:00');
+      return (d - now) / (1000 * 60 * 60 * 24 * 30.44);
+    });
+
+    // Build series per lift: history e1rm points + projection points
+    const series = {};
+    let allValues = [];
+    let allMonths = [];
+
+    for (const key of liftKeys) {
+      const points = [];
+      // Historical points from TM history (convert TM to e1rm)
+      data.tmHistory.forEach((h, i) => {
+        if (h[key] !== undefined) {
+          const e1rm = Math.round(h[key] / 0.9);
+          points.push({ month: historyMonths[i], value: e1rm, type: 'history' });
+          allValues.push(e1rm);
+          allMonths.push(historyMonths[i]);
+        }
+      });
+      // Current estimated 1RM
+      const currentE1rm = e1rms[key].e1rm;
+      points.push({ month: 0, value: currentE1rm, type: 'current' });
+      allValues.push(currentE1rm);
+      allMonths.push(0);
+      // Future projections
+      for (const m of [3, 6, 9]) {
+        const proj = project1RM(currentE1rm, data.lifts[key].type, m);
+        points.push({ month: m, value: proj, type: 'projection' });
+        allValues.push(proj);
+        allMonths.push(m);
+      }
+      // Sort by month
+      points.sort((a, b) => a.month - b.month);
+      series[key] = points;
+    }
+
+    // Calculate chart bounds
+    const padding = { top: 24, right: 16, bottom: 36, left: 44 };
+    const chartW = W - padding.left - padding.right;
+    const chartH = H - padding.top - padding.bottom;
+    const minMonth = Math.min(...allMonths, -1);
+    const maxMonth = Math.max(...allMonths, 9);
+    const minVal = Math.min(...allValues) - 15;
+    const maxVal = Math.max(...allValues) + 15;
+
+    function xPos(month) { return padding.left + ((month - minMonth) / (maxMonth - minMonth)) * chartW; }
+    function yPos(val) { return padding.top + (1 - (val - minVal) / (maxVal - minVal)) * chartH; }
+
+    // Background
+    ctx.fillStyle = '#141414';
+    ctx.fillRect(0, 0, W, H);
+
+    // Grid lines (horizontal)
+    ctx.strokeStyle = '#2a2a2a';
+    ctx.lineWidth = 1;
+    const gridSteps = 5;
+    const valStep = Math.ceil((maxVal - minVal) / gridSteps / 10) * 10;
+    const gridStart = Math.floor(minVal / valStep) * valStep;
+    ctx.font = '11px -apple-system, system-ui, sans-serif';
+    ctx.fillStyle = '#666';
+    ctx.textAlign = 'right';
+    for (let v = gridStart; v <= maxVal; v += valStep) {
+      const y = yPos(v);
+      if (y >= padding.top && y <= H - padding.bottom) {
+        ctx.beginPath();
+        ctx.moveTo(padding.left, y);
+        ctx.lineTo(W - padding.right, y);
+        ctx.stroke();
+        ctx.fillText(v.toString(), padding.left - 6, y + 4);
+      }
+    }
+
+    // "Now" vertical line
+    const nowX = xPos(0);
+    ctx.strokeStyle = '#444';
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(nowX, padding.top);
+    ctx.lineTo(nowX, H - padding.bottom);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#888';
+    ctx.textAlign = 'center';
+    ctx.fillText('Now', nowX, H - padding.bottom + 14);
+
+    // Month labels on X-axis
+    for (const m of [3, 6, 9]) {
+      ctx.fillStyle = '#666';
+      ctx.fillText(`+${m}mo`, xPos(m), H - padding.bottom + 14);
+    }
+    // Past labels
+    if (historyMonths.length > 1) {
+      const earliest = Math.min(...historyMonths);
+      if (earliest < -0.5) {
+        ctx.fillText(`${Math.round(earliest)}mo`, xPos(earliest), H - padding.bottom + 14);
+      }
+    }
+
+    // Y-axis label
+    ctx.save();
+    ctx.fillStyle = '#666';
+    ctx.font = '10px -apple-system, system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.translate(12, H / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText('Est. 1RM (lbs)', 0, 0);
+    ctx.restore();
+
+    // Draw lift lines
+    for (const key of liftKeys) {
+      const pts = series[key];
+      const color = LIFT_COLORS[key] || '#fff';
+
+      // Split into history/current (solid) and projection (dashed)
+      const solidPts = pts.filter(p => p.month <= 0);
+      const projPts = pts.filter(p => p.month >= 0);
+
+      // Solid line (history to now)
+      if (solidPts.length >= 2) {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2.5;
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        solidPts.forEach((p, i) => {
+          const x = xPos(p.month), y = yPos(p.value);
+          i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+      }
+
+      // Dashed line (now to future)
+      if (projPts.length >= 2) {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6, 4]);
+        ctx.beginPath();
+        projPts.forEach((p, i) => {
+          const x = xPos(p.month), y = yPos(p.value);
+          i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      // Dots
+      pts.forEach(p => {
+        const x = xPos(p.month), y = yPos(p.value);
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(x, y, p.type === 'current' ? 5 : 3.5, 0, Math.PI * 2);
+        ctx.fill();
+        // White ring on current
+        if (p.type === 'current') {
+          ctx.strokeStyle = '#fff';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(x, y, 5, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+      });
+
+      // Value label at 9-month projection
+      const last = projPts[projPts.length - 1];
+      if (last) {
+        ctx.fillStyle = color;
+        ctx.font = 'bold 11px -apple-system, system-ui, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText(last.value.toString(), xPos(last.month) + 6, yPos(last.value) + 4);
+      }
+    }
+  }
+
+  function renderProgress() {
+    const cont = document.getElementById('progressContent');
+    const e1rms = getEstimated1RMs();
+    let html = '';
+
+    // Current 1RM Estimates
+    html += '<div class="card-title">Estimated 1 Rep Maxes</div>';
+    html += '<div class="stat-grid">';
+    for (const [key, info] of Object.entries(e1rms)) {
+      html += `<div class="card stat-card">
+        <div class="stat-value">${info.e1rm}</div>
+        <div class="stat-label">${info.name}</div>
+        ${info.date ? `<div class="text-xs text-muted mt-8">${info.weight} x ${info.reps}</div>` : `<div class="text-xs text-muted mt-8">From TM</div>`}
+      </div>`;
+    }
+    html += '</div>';
+
+    // Projection Chart
+    html += '<div class="card"><div class="card-title">1RM Projection Graph</div>';
+    html += '<div class="chart-container"><canvas id="projectionChart" style="width:100%;height:280px"></canvas></div>';
+    html += '<div class="chart-legend">';
+    for (const [key, lift] of Object.entries(data.lifts)) {
+      html += `<div class="chart-legend-item">
+        <div class="chart-legend-dot" style="background:${LIFT_COLORS[key]}"></div>
+        ${lift.name}
+      </div>`;
+    }
+    html += '</div>';
+    html += '<div class="text-xs text-muted mt-8" style="text-align:center">Solid = history, Dashed = projected</div>';
+    html += '</div>';
+
+    // Current TMs
+    html += '<div class="card"><div class="card-title">Current Training Maxes</div>';
+    for (const [key, lift] of Object.entries(data.lifts)) {
+      html += `<div class="flex-between" style="padding:6px 0;border-bottom:1px solid var(--card-border)">
+        <span>${lift.name}</span>
+        <span class="fw-700 text-accent">${lift.tm} ${data.settings.units}</span>
+      </div>`;
+    }
+    html += '</div>';
+
+    // Projections Table
+    html += '<div class="card"><div class="card-title">1RM Projections</div>';
+    html += '<table class="projection-table"><thead><tr>';
+    html += '<th>Lift</th><th>Now</th><th>3 mo</th><th>6 mo</th><th>9 mo</th>';
+    html += '</tr></thead><tbody>';
+    for (const [key, info] of Object.entries(e1rms)) {
+      const p3 = project1RM(info.e1rm, info.type, 3);
+      const p6 = project1RM(info.e1rm, info.type, 6);
+      const p9 = project1RM(info.e1rm, info.type, 9);
+      html += `<tr>
+        <td class="fw-700">${info.name}</td>
+        <td>${info.e1rm}</td>
+        <td class="trend-up">${p3}</td>
+        <td class="trend-up">${p6}</td>
+        <td class="trend-up">${p9}</td>
+      </tr>`;
+    }
+    html += '</tbody></table>';
+    html += '<div class="text-xs text-muted mt-8">Based on standard 5/3/1 progression: +5 lbs/cycle (upper), +10 lbs/cycle (lower)</div>';
+    html += '</div>';
+
+    // Actual Progression Rate (if enough data)
+    const rates = getProgressionRate();
+    if (rates) {
+      html += '<div class="card"><div class="card-title">Actual Progression Rate</div>';
+      html += `<div class="text-xs text-muted mb-8">Over ${rates.months.toFixed(1)} months of training</div>`;
+      for (const [key, rate] of Object.entries(rates.rates)) {
+        const lift = data.lifts[key];
+        if (lift) {
+          html += `<div class="flex-between" style="padding:6px 0;border-bottom:1px solid var(--card-border)">
+            <span>${lift.name}</span>
+            <span class="${rate >= 0 ? 'trend-up' : ''} fw-700">${rate >= 0 ? '+' : ''}${rate.toFixed(1)} lbs/mo</span>
+          </div>`;
+        }
+      }
+
+      // Data-driven projections
+      html += '<div class="mt-12"><div class="sets-label">Data-Driven 1RM Projections</div></div>';
+      html += '<table class="projection-table"><thead><tr>';
+      html += '<th>Lift</th><th>Now</th><th>3 mo</th><th>6 mo</th><th>9 mo</th>';
+      html += '</tr></thead><tbody>';
+      for (const [key, info] of Object.entries(e1rms)) {
+        const rate = rates.rates[key] || 0;
+        const monthlyE1rmRate = rate / 0.9; // approximate
+        html += `<tr>
+          <td class="fw-700">${info.name}</td>
+          <td>${info.e1rm}</td>
+          <td class="trend-up">${Math.round(info.e1rm + monthlyE1rmRate * 3)}</td>
+          <td class="trend-up">${Math.round(info.e1rm + monthlyE1rmRate * 6)}</td>
+          <td class="trend-up">${Math.round(info.e1rm + monthlyE1rmRate * 9)}</td>
+        </tr>`;
+      }
+      html += '</tbody></table>';
+      html += '<div class="text-xs text-muted mt-8">Based on your actual TM progression history</div>';
+      html += '</div>';
+    }
+
+    // TM History
+    if (data.tmHistory.length > 0) {
+      html += '<div class="card"><div class="card-title">TM History</div>';
+      data.tmHistory.slice().reverse().forEach(h => {
+        html += `<div style="padding:6px 0;border-bottom:1px solid var(--card-border);font-size:13px">
+          <div class="flex-between">
+            <span class="text-muted">${formatDate(h.date)}${h.cycle ? ` (Cycle ${h.cycle})` : ''}</span>
+          </div>
+          <div style="display:flex;gap:12px;margin-top:4px">`;
+        for (const [key, lift] of Object.entries(data.lifts)) {
+          if (h[key] !== undefined) {
+            html += `<span><span class="text-muted">${lift.name.slice(0,2)}:</span> ${h[key]}</span>`;
+          }
+        }
+        html += '</div></div>';
+      });
+      html += '</div>';
+    }
+
+    cont.innerHTML = html;
+
+    // Draw the chart after DOM update
+    requestAnimationFrame(() => drawProjectionChart('projectionChart'));
+  }
+
+  function renderSettings() {
+    const cont = document.getElementById('settingsContent');
+    let html = '';
+
+    // Training Maxes
+    html += '<div class="card"><div class="card-title">Training Maxes</div>';
+    for (const [key, lift] of Object.entries(data.lifts)) {
+      html += `<div class="setting-row">
+        <label>${lift.name}</label>
+        <input type="number" value="${lift.tm}" min="0" step="5"
+               onchange="App.updateTM('${key}', this.value)" onfocus="this.select()">
+        <span class="text-muted text-sm">${data.settings.units}</span>
+      </div>`;
+    }
+    html += '</div>';
+
+    // Cycle & Week
+    html += `<div class="card"><div class="card-title">Cycle & Week</div>
+      <div class="setting-row">
+        <label>Current Cycle</label>
+        <input type="number" value="${data.currentCycle}" min="1"
+               onchange="App.setCycle(this.value)" onfocus="this.select()">
+      </div>
+      <div class="setting-row">
+        <label>Current Week</label>
+        <select onchange="App.setWeek(parseInt(this.value))">
+          <option value="1" ${data.currentWeek===1?'selected':''}>Week 1 (5s)</option>
+          <option value="2" ${data.currentWeek===2?'selected':''}>Week 2 (3s)</option>
+          <option value="3" ${data.currentWeek===3?'selected':''}>Week 3 (1s)</option>
+          <option value="4" ${data.currentWeek===4?'selected':''}>Deload</option>
+        </select>
+      </div>
+      <div class="setting-row">
+        <label>Include Deload Week</label>
+        <select onchange="App.toggleDeload(this.value)">
+          <option value="false" ${!data.settings.includeDeload?'selected':''}>No (3-week cycles)</option>
+          <option value="true" ${data.settings.includeDeload?'selected':''}>Yes (4-week cycles)</option>
+        </select>
+      </div>
+    </div>`;
+
+    // Advance Cycle
+    html += `<div class="card"><div class="card-title">Cycle Management</div>
+      <p class="text-sm text-muted mb-8">Advance to the next cycle. This will increase your TMs automatically (+5 upper, +10 lower).</p>
+      <button class="btn btn-primary" onclick="App.advanceCycle()">Advance to Next Cycle</button>
+    </div>`;
+
+    // Accessory Management
+    html += '<div class="card"><div class="card-title">Accessories</div>';
+    data.days.forEach((day, di) => {
+      html += `<div style="margin-bottom:16px">
+        <div class="fw-700 mb-8">${day.name}</div>`;
+      day.accessories.forEach((acc, ai) => {
+        const reps = acc.repsLow === acc.repsHigh ? acc.repsLow : `${acc.repsLow}-${acc.repsHigh}`;
+        html += `<div class="flex-between text-sm" style="padding:4px 0">
+          <span>${acc.name}</span>
+          <span class="text-muted">${acc.sets}x${reps}</span>
+        </div>`;
+      });
+      html += `<button class="btn btn-outline btn-sm mt-8" onclick="App.editAccessories(${di})">Edit Day ${di+1}</button>`;
+      html += '</div>';
+    });
+    html += '</div>';
+
+    // Data Management
+    html += `<div class="card"><div class="card-title">Data</div>
+      <div class="inline-btns">
+        <button class="btn btn-outline btn-sm" onclick="App.exportData()">Export JSON</button>
+        <button class="btn btn-outline btn-sm" onclick="document.getElementById('importFile').click()">Import JSON</button>
+      </div>
+      <input type="file" id="importFile" accept=".json" style="display:none" onchange="App.importData(this)">
+      <button class="btn btn-danger btn-sm" style="margin-top:10px" onclick="App.resetData()">Reset All Data</button>
+    </div>`;
+
+    cont.innerHTML = html;
+  }
+
+  // ===== ACTIONS =====
+  function selectDay(i) {
+    data.selectedDay = i;
+    save();
+    renderDaySelector();
+    renderWorkout();
+  }
+
+  function setWeek(w) {
+    data.currentWeek = parseInt(w);
+    save();
+    render();
+  }
+
+  function setCycle(c) {
+    data.currentCycle = parseInt(c);
+    save();
+    renderCycleBadge();
+  }
+
+  function toggleSet(wKey, idx) {
+    if (!workoutInProgress[wKey]) return;
+    workoutInProgress[wKey].setsCompleted[idx] = !workoutInProgress[wKey].setsCompleted[idx];
+    renderWorkout();
+    // Start rest timer on check
+    if (workoutInProgress[wKey].setsCompleted[idx]) {
+      startTimer(120);
+    }
+  }
+
+  function setAmrap(wKey, val) {
+    if (!workoutInProgress[wKey]) return;
+    workoutInProgress[wKey].amrapReps = val;
+    renderWorkout();
+  }
+
+  function setAccWeight(wKey, accIdx, val) {
+    if (!workoutInProgress[wKey]) return;
+    workoutInProgress[wKey].accWeights[accIdx] = parseFloat(val) || 0;
+  }
+
+  function setAccRep(wKey, accIdx, setIdx, val) {
+    if (!workoutInProgress[wKey]) return;
+    workoutInProgress[wKey].accReps[accIdx][setIdx] = parseInt(val) || 0;
+    const btn = document.querySelector(`#accReps_${accIdx} input:nth-child(${setIdx + 1})`);
+    if (btn) btn.classList.toggle('filled', parseInt(val) > 0);
+  }
+
+  function logWorkout(wKey) {
+    const wp = workoutInProgress[wKey];
+    if (!wp) return;
+
+    const day = data.days[data.selectedDay];
+    const lift = data.lifts[day.mainLift];
+    const working = getWorkingSets(lift.tm, data.currentWeek);
+
+    const entry = {
+      id: Date.now().toString(36),
+      date: new Date().toISOString().slice(0, 10),
+      dayIndex: data.selectedDay,
+      cycle: data.currentCycle,
+      week: data.currentWeek,
+      mainLift: {
+        liftKey: day.mainLift,
+        tm: lift.tm,
+        amrapReps: parseInt(wp.amrapReps) || 0,
+        sets: working.map(s => ({
+          weight: s.weight, reps: s.reps, pct: s.pct, isAmrap: s.isAmrap,
+        })),
+      },
+      accessories: day.accessories.map((acc, ai) => ({
+        name: acc.name,
+        weight: wp.accWeights[ai] || 0,
+        reps: wp.accReps[ai] || [],
+      })),
+    };
+
+    data.log.push(entry);
+
+    // Update last weights/reps on accessories for next time suggestions
+    day.accessories.forEach((acc, ai) => {
+      const w = wp.accWeights[ai];
+      const r = wp.accReps[ai];
+      if (w > 0) acc.lastWeight = w;
+      if (r && r.some(x => x > 0)) acc.lastReps = [...r];
+    });
+
+    delete workoutInProgress[wKey];
+    save();
+
+    showModal(`<h3>Workout Logged!</h3>
+      <p class="text-sm text-muted">${day.name} - Week ${data.currentWeek}, Cycle ${data.currentCycle}</p>
+      ${entry.mainLift.amrapReps > 0 ? `<p class="mt-8">AMRAP: ${working[working.length-1].weight} x ${entry.mainLift.amrapReps}<br>
+      <span class="text-warning fw-700">Estimated 1RM: ${estimate1RM(working[working.length-1].weight, entry.mainLift.amrapReps)} lbs</span></p>` : ''}
+      <button class="btn btn-primary" onclick="App.closeModal()">OK</button>`);
+
+    renderWorkout();
+  }
+
+  function advanceCycle() {
+    showModal(`<h3>Advance to Cycle ${data.currentCycle + 1}?</h3>
+      <p class="text-sm text-muted mb-8">This will increase your training maxes:</p>
+      <div class="text-sm mb-16">
+        ${Object.entries(data.lifts).map(([k, l]) => {
+          const inc = l.type === 'upper' ? 5 : 10;
+          return `<div class="flex-between" style="padding:4px 0">
+            <span>${l.name}</span>
+            <span>${l.tm} → <span class="text-success fw-700">${l.tm + inc}</span></span>
+          </div>`;
+        }).join('')}
+      </div>
+      <div class="inline-btns">
+        <button class="btn btn-outline" onclick="App.closeModal()">Cancel</button>
+        <button class="btn btn-success" onclick="App.confirmAdvanceCycle()">Advance</button>
+      </div>`);
+  }
+
+  function confirmAdvanceCycle() {
+    for (const [key, lift] of Object.entries(data.lifts)) {
+      lift.tm += lift.type === 'upper' ? 5 : 10;
+    }
+    data.currentCycle++;
+    data.currentWeek = 1;
+
+    data.tmHistory.push({
+      date: new Date().toISOString().slice(0, 10),
+      bench: data.lifts.bench.tm,
+      frontSquat: data.lifts.frontSquat.tm,
+      ohp: data.lifts.ohp.tm,
+      rdl: data.lifts.rdl.tm,
+      cycle: data.currentCycle,
+    });
+
+    save();
+    closeModal();
+    render();
+    renderSettings();
+  }
+
+  function updateTM(key, val) {
+    data.lifts[key].tm = parseInt(val) || 0;
+    save();
+    render();
+  }
+
+  function toggleDeload(val) {
+    data.settings.includeDeload = val === 'true';
+    save();
+    renderWeekSelector();
+  }
+
+  function editAccessories(dayIdx) {
+    const day = data.days[dayIdx];
+    let html = `<h3>Edit ${day.name} Accessories</h3>
+      <div style="max-height:60vh;overflow-y:auto">`;
+    day.accessories.forEach((acc, ai) => {
+      html += `<div style="margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--card-border)">
+        <div class="setting-row"><label>Name</label>
+          <input type="text" id="accName_${dayIdx}_${ai}" value="${acc.name}" style="width:180px">
+        </div>
+        <div style="display:flex;gap:8px">
+          <div class="setting-row" style="flex:1"><label>Sets</label>
+            <input type="number" id="accSets_${dayIdx}_${ai}" value="${acc.sets}" min="1" max="10" style="width:50px">
+          </div>
+          <div class="setting-row" style="flex:1"><label>Low</label>
+            <input type="number" id="accLow_${dayIdx}_${ai}" value="${acc.repsLow}" min="1" max="50" style="width:50px">
+          </div>
+          <div class="setting-row" style="flex:1"><label>High</label>
+            <input type="number" id="accHigh_${dayIdx}_${ai}" value="${acc.repsHigh}" min="1" max="50" style="width:50px">
+          </div>
+        </div>
+      </div>`;
+    });
+    html += `</div>
+      <button class="btn btn-outline btn-sm mb-8" onclick="App.addAccessory(${dayIdx})">+ Add Exercise</button>
+      <div class="inline-btns">
+        <button class="btn btn-outline" onclick="App.closeModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="App.saveAccessories(${dayIdx})">Save</button>
+      </div>`;
+    showModal(html);
+  }
+
+  function addAccessory(dayIdx) {
+    data.days[dayIdx].accessories.push({
+      name: 'New Exercise', sets: 3, repsLow: 10, repsHigh: 12, lastWeight: 0, lastReps: [],
+    });
+    save();
+    editAccessories(dayIdx);
+  }
+
+  function saveAccessories(dayIdx) {
+    const day = data.days[dayIdx];
+    day.accessories.forEach((acc, ai) => {
+      const nameEl = document.getElementById(`accName_${dayIdx}_${ai}`);
+      const setsEl = document.getElementById(`accSets_${dayIdx}_${ai}`);
+      const lowEl = document.getElementById(`accLow_${dayIdx}_${ai}`);
+      const highEl = document.getElementById(`accHigh_${dayIdx}_${ai}`);
+      if (nameEl) acc.name = nameEl.value;
+      if (setsEl) acc.sets = parseInt(setsEl.value) || 3;
+      if (lowEl) acc.repsLow = parseInt(lowEl.value) || 8;
+      if (highEl) acc.repsHigh = parseInt(highEl.value) || 12;
+    });
+    save();
+    closeModal();
+    renderWorkout();
+    renderSettings();
+  }
+
+  // ===== DATA MANAGEMENT =====
+  function exportData() {
+    const json = JSON.stringify(data, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `531tracker_${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function importData(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const imported = JSON.parse(e.target.result);
+        if (imported.lifts && imported.days) {
+          data = imported;
+          save();
+          render();
+          renderSettings();
+          showModal('<h3>Import Successful</h3><p>Your data has been imported.</p><button class="btn btn-primary" onclick="App.closeModal()">OK</button>');
+        } else {
+          alert('Invalid data format');
+        }
+      } catch (err) { alert('Error reading file: ' + err.message); }
+    };
+    reader.readAsText(file);
+  }
+
+  function resetData() {
+    showModal(`<h3>Reset All Data?</h3>
+      <p class="text-sm text-muted mb-16">This cannot be undone. All workout history, TMs, and settings will be reset to defaults.</p>
+      <div class="inline-btns">
+        <button class="btn btn-outline" onclick="App.closeModal()">Cancel</button>
+        <button class="btn btn-danger" onclick="App.confirmReset()">Reset</button>
+      </div>`);
+  }
+
+  function confirmReset() {
+    localStorage.removeItem('531tracker');
+    workoutInProgress = {};
+    load();
+    closeModal();
+    render();
+    renderSettings();
+  }
+
+  // ===== MODAL =====
+  function showModal(html) {
+    document.getElementById('modalContent').innerHTML = html;
+    document.getElementById('modalOverlay').classList.add('show');
+  }
+  function closeModal() {
+    document.getElementById('modalOverlay').classList.remove('show');
+  }
+
+  // ===== HISTORY TOGGLE =====
+  function toggleHistory(idx) {
+    const el = document.getElementById(`histDetail_${idx}`);
+    if (el) el.classList.toggle('open');
+  }
+
+  // ===== HELPERS =====
+  function formatDate(dateStr) {
+    const d = new Date(dateStr + 'T12:00:00');
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  // ===== TAB NAVIGATION =====
+  function switchTab(tabId) {
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(tabId).classList.add('active');
+    document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
+    document.getElementById('mainContent').scrollTop = 0;
+
+    if (tabId === 'viewHistory') renderHistory();
+    if (tabId === 'viewProgress') renderProgress();
+    if (tabId === 'viewSettings') renderSettings();
+  }
+
+  // ===== INIT =====
+  function init() {
+    load();
+
+    // Tab navigation
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+    });
+
+    // Close modal on overlay click
+    document.getElementById('modalOverlay').addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) closeModal();
+    });
+
+    render();
+  }
+
+  document.addEventListener('DOMContentLoaded', init);
+
+  // Register Service Worker for offline/PWA
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  }
+
+  // Public API
+  return {
+    selectDay, setWeek, setCycle, toggleSet, setAmrap, setAccWeight, setAccRep,
+    logWorkout, advanceCycle, confirmAdvanceCycle, updateTM, toggleDeload,
+    editAccessories, addAccessory, saveAccessories, toggleHistory,
+    startTimer, stopTimer, addTime,
+    exportData, importData, resetData, confirmReset,
+    showModal, closeModal,
+  };
+})();
+</script>
+</body>
+</html>
