@@ -133,17 +133,18 @@
     .acc-name { font-size: 14px; font-weight: 600; }
     .acc-target { font-size: 12px; color: var(--muted); }
     .acc-last { font-size: 12px; color: var(--accent); margin-top: 2px; }
-    .acc-inputs { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-    .acc-inputs label { font-size: 12px; color: var(--muted); font-weight: 600; }
-    .acc-inputs input { width: 64px; padding: 8px; font-size: 14px; }
-    .acc-set-reps { display: flex; gap: 4px; margin-top: 6px; align-items: center; }
-    .acc-rep-btn {
-      width: 44px; height: 36px; border-radius: 6px; border: 1px solid var(--card-border);
+    .acc-set-table { width: 100%; margin-top: 4px; }
+    .acc-set-row { display: flex; align-items: center; gap: 6px; padding: 3px 0; }
+    .acc-set-label { width: 22px; font-size: 11px; color: var(--muted); font-weight: 700; flex-shrink: 0; }
+    .acc-input {
+      height: 34px; border-radius: 6px; border: 1px solid var(--card-border);
       background: var(--input-bg); color: var(--text); font-size: 13px; font-weight: 600;
       text-align: center; padding: 0 4px;
     }
-    .acc-rep-btn.prefilled { background: var(--input-bg); border-color: var(--card-border); color: var(--muted); }
-    .acc-rep-btn.filled { background: #1a3a2a; border-color: var(--success); color: var(--success); }
+    .acc-input.wt { width: 64px; }
+    .acc-input.rp { width: 44px; }
+    .acc-input.filled { background: #1a3a2a; border-color: var(--success); color: var(--success); }
+    .acc-set-x { font-size: 11px; color: var(--muted); flex-shrink: 0; }
     .acc-suggestion { font-size: 11px; color: var(--success); margin-top: 4px; font-weight: 600; }
 
     /* ===== HISTORY ===== */
@@ -239,6 +240,23 @@
     .mb-16 { margin-bottom: 16px; }
     .fw-700 { font-weight: 700; }
     .flex-between { display: flex; justify-content: space-between; align-items: center; }
+
+    /* ===== TEMPLATE SELECTOR ===== */
+    .template-current { font-size: 14px; color: var(--accent); font-weight: 600; margin-bottom: 4px; }
+    .template-grid { display: flex; flex-direction: column; gap: 8px; max-height: 60vh; overflow-y: auto; margin-bottom: 12px; }
+    .template-card {
+      padding: 12px; border: 2px solid var(--card-border); border-radius: 10px;
+      cursor: pointer; transition: all 0.2s; background: var(--input-bg);
+    }
+    .template-card:active { transform: scale(0.98); }
+    .template-card.selected { border-color: var(--accent); background: rgba(79,140,255,0.1); }
+    .template-card-name { font-size: 15px; font-weight: 700; }
+    .template-card-desc { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .template-card-days { font-size: 11px; color: var(--accent); margin-top: 4px; font-weight: 600; }
+
+    /* ===== SUPPLEMENTAL SETS ===== */
+    .supplemental-label { color: var(--warning); }
+    .supp-badge { display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; background: var(--warning); color: #000; margin-left: 6px; vertical-align: middle; }
   </style>
 </head>
 <body>
@@ -330,10 +348,345 @@ const App = (() => {
   const PLATES = [45, 25, 10, 5, 2.5];
   const BAR_WEIGHT = 45;
 
+  // ===== PROGRAM TEMPLATES =====
+  const TEMPLATES = {
+    currentSplit: {
+      id: 'currentSplit',
+      name: 'BBB Bodybuilding Split',
+      description: 'Your 4-day bodypart split with 5/3/1 main lifts',
+      daysPerWeek: 4,
+      cycleWeeks: 3,
+      days: [
+        {
+          name: 'Chest & Triceps', mainLift: 'bench', supplemental: null,
+          accessories: [
+            { name: 'Neutral-Grip DB Bench',     sets: 4, repsLow: 8,  repsHigh: 12, lastWeight: 0, lastReps: [] },
+            { name: 'Landmine Incline Press',     sets: 3, repsLow: 10, repsHigh: 12, lastWeight: 0, lastReps: [] },
+            { name: 'Cable / Pec-Deck Flyes',     sets: 4, repsLow: 12, repsHigh: 15, lastWeight: 0, lastReps: [] },
+            { name: 'OH DB / Cable Triceps Ext.', sets: 4, repsLow: 10, repsHigh: 12, lastWeight: 0, lastReps: [] },
+            { name: 'Triceps Pushdowns',           sets: 3, repsLow: 12, repsHigh: 15, lastWeight: 0, lastReps: [] },
+          ]
+        },
+        {
+          name: 'Legs & Abs', mainLift: 'frontSquat', supplemental: null,
+          accessories: [
+            { name: 'Step Ups',                 sets: 4, repsLow: 12, repsHigh: 15, lastWeight: 0, lastReps: [] },
+            { name: 'Hip Thrusts',              sets: 3, repsLow: 10, repsHigh: 10, lastWeight: 0, lastReps: [] },
+            { name: 'Leg Curls (Seated/Lying)', sets: 4, repsLow: 12, repsHigh: 15, lastWeight: 0, lastReps: [] },
+            { name: 'Standing Calf Raises',     sets: 3, repsLow: 12, repsHigh: 15, lastWeight: 0, lastReps: [] },
+            { name: 'Cable / Weighted Crunches',sets: 4, repsLow: 12, repsHigh: 15, lastWeight: 0, lastReps: [] },
+          ]
+        },
+        {
+          name: 'Shoulders & Biceps', mainLift: 'ohp', supplemental: null,
+          accessories: [
+            { name: 'Landmine Press',              sets: 4, repsLow: 10, repsHigh: 12, lastWeight: 0, lastReps: [] },
+            { name: 'DB Lateral Raises',            sets: 4, repsLow: 12, repsHigh: 15, lastWeight: 0, lastReps: [] },
+            { name: 'Cable / DB Rear Delt Flyes',  sets: 3, repsLow: 15, repsHigh: 15, lastWeight: 0, lastReps: [] },
+            { name: 'Behind-the-Body Cable Curls', sets: 4, repsLow: 12, repsHigh: 15, lastWeight: 0, lastReps: [] },
+            { name: 'Hammer Curls',                  sets: 3, repsLow: 12, repsHigh: 15, lastWeight: 0, lastReps: [] },
+          ]
+        },
+        {
+          name: 'Back', mainLift: 'rdl', supplemental: null,
+          accessories: [
+            { name: 'Chest-Supported Row',             sets: 4, repsLow: 8,  repsHigh: 12, lastWeight: 0, lastReps: [] },
+            { name: 'Lat Pulldown / Neutral Pull-ups', sets: 4, repsLow: 10, repsHigh: 12, lastWeight: 0, lastReps: [] },
+            { name: 'Rope Rows (per side)',             sets: 2, repsLow: 15, repsHigh: 15, lastWeight: 0, lastReps: [] },
+            { name: 'DB Shrugs (2s squeeze)',           sets: 4, repsLow: 10, repsHigh: 12, lastWeight: 0, lastReps: [] },
+            { name: 'Abs',                               sets: 3, repsLow: 12, repsHigh: 15, lastWeight: 0, lastReps: [] },
+          ]
+        },
+      ]
+    },
+    bbb: {
+      id: 'bbb',
+      name: 'Boring But Big',
+      description: '5/3/1 + 5x10 supplemental at 50% TM for hypertrophy',
+      daysPerWeek: 4,
+      cycleWeeks: 3,
+      days: [
+        {
+          name: 'OHP + Bench Volume', mainLift: 'ohp',
+          supplemental: { type: 'bbb', liftKey: 'bench', sets: 5, reps: 10, pct: 0.50 },
+          accessories: [
+            { name: 'Chin-ups / Lat Pulldown', sets: 5, repsLow: 10, repsHigh: 15, lastWeight: 0, lastReps: [] },
+            { name: 'Face Pulls',               sets: 3, repsLow: 15, repsHigh: 20, lastWeight: 0, lastReps: [] },
+          ]
+        },
+        {
+          name: 'Squat + Deadlift Volume', mainLift: 'frontSquat',
+          supplemental: { type: 'bbb', liftKey: 'rdl', sets: 5, reps: 10, pct: 0.50 },
+          accessories: [
+            { name: 'Leg Curls',    sets: 5, repsLow: 10, repsHigh: 15, lastWeight: 0, lastReps: [] },
+            { name: 'Ab Wheel',     sets: 5, repsLow: 10, repsHigh: 15, lastWeight: 0, lastReps: [] },
+          ]
+        },
+        {
+          name: 'Bench + OHP Volume', mainLift: 'bench',
+          supplemental: { type: 'bbb', liftKey: 'ohp', sets: 5, reps: 10, pct: 0.50 },
+          accessories: [
+            { name: 'DB Rows',       sets: 5, repsLow: 10, repsHigh: 15, lastWeight: 0, lastReps: [] },
+            { name: 'Curls',         sets: 3, repsLow: 10, repsHigh: 15, lastWeight: 0, lastReps: [] },
+          ]
+        },
+        {
+          name: 'Deadlift + Squat Volume', mainLift: 'rdl',
+          supplemental: { type: 'bbb', liftKey: 'frontSquat', sets: 5, reps: 10, pct: 0.50 },
+          accessories: [
+            { name: 'Lunges',            sets: 5, repsLow: 10, repsHigh: 15, lastWeight: 0, lastReps: [] },
+            { name: 'Hanging Leg Raise', sets: 5, repsLow: 10, repsHigh: 15, lastWeight: 0, lastReps: [] },
+          ]
+        },
+      ]
+    },
+    fsl: {
+      id: 'fsl',
+      name: 'First Set Last',
+      description: '5/3/1 + 5x5 at first working set % for strength + moderate volume',
+      daysPerWeek: 4,
+      cycleWeeks: 3,
+      days: [
+        {
+          name: 'OHP', mainLift: 'ohp',
+          supplemental: { type: 'fsl', liftKey: 'ohp', sets: 5, reps: 5, pct: 'fsl' },
+          accessories: [
+            { name: 'Chin-ups / Lat Pulldown', sets: 5, repsLow: 10, repsHigh: 15, lastWeight: 0, lastReps: [] },
+            { name: 'Dips / DB Bench',          sets: 5, repsLow: 10, repsHigh: 15, lastWeight: 0, lastReps: [] },
+            { name: 'Face Pulls',               sets: 5, repsLow: 15, repsHigh: 20, lastWeight: 0, lastReps: [] },
+          ]
+        },
+        {
+          name: 'Front Squat', mainLift: 'frontSquat',
+          supplemental: { type: 'fsl', liftKey: 'frontSquat', sets: 5, reps: 5, pct: 'fsl' },
+          accessories: [
+            { name: 'Leg Curls',            sets: 5, repsLow: 10, repsHigh: 15, lastWeight: 0, lastReps: [] },
+            { name: 'Single-Leg Work',      sets: 5, repsLow: 10, repsHigh: 15, lastWeight: 0, lastReps: [] },
+            { name: 'Ab Wheel / Planks',    sets: 5, repsLow: 10, repsHigh: 15, lastWeight: 0, lastReps: [] },
+          ]
+        },
+        {
+          name: 'Bench Press', mainLift: 'bench',
+          supplemental: { type: 'fsl', liftKey: 'bench', sets: 5, reps: 5, pct: 'fsl' },
+          accessories: [
+            { name: 'DB Rows',               sets: 5, repsLow: 10, repsHigh: 15, lastWeight: 0, lastReps: [] },
+            { name: 'DB Flyes / Push-ups',   sets: 5, repsLow: 10, repsHigh: 15, lastWeight: 0, lastReps: [] },
+            { name: 'Curls',                  sets: 5, repsLow: 10, repsHigh: 15, lastWeight: 0, lastReps: [] },
+          ]
+        },
+        {
+          name: 'Romanian Deadlift', mainLift: 'rdl',
+          supplemental: { type: 'fsl', liftKey: 'rdl', sets: 5, reps: 5, pct: 'fsl' },
+          accessories: [
+            { name: 'Good Mornings / Back Ext.',  sets: 5, repsLow: 10, repsHigh: 15, lastWeight: 0, lastReps: [] },
+            { name: 'Lunges',                      sets: 5, repsLow: 10, repsHigh: 15, lastWeight: 0, lastReps: [] },
+            { name: 'Hanging Leg Raise',            sets: 5, repsLow: 10, repsHigh: 15, lastWeight: 0, lastReps: [] },
+          ]
+        },
+      ]
+    },
+    bbs: {
+      id: 'bbs',
+      name: 'Boring But Strong',
+      description: '5/3/1 + 10x5 at first working set % for high-volume strength',
+      daysPerWeek: 4,
+      cycleWeeks: 3,
+      days: [
+        {
+          name: 'OHP', mainLift: 'ohp',
+          supplemental: { type: 'bbs', liftKey: 'ohp', sets: 10, reps: 5, pct: 'fsl' },
+          accessories: [
+            { name: 'Chin-ups / Rows', sets: 5, repsLow: 10, repsHigh: 15, lastWeight: 0, lastReps: [] },
+            { name: 'Face Pulls',       sets: 3, repsLow: 15, repsHigh: 20, lastWeight: 0, lastReps: [] },
+          ]
+        },
+        {
+          name: 'Front Squat', mainLift: 'frontSquat',
+          supplemental: { type: 'bbs', liftKey: 'frontSquat', sets: 10, reps: 5, pct: 'fsl' },
+          accessories: [
+            { name: 'Leg Curls',   sets: 5, repsLow: 10, repsHigh: 15, lastWeight: 0, lastReps: [] },
+            { name: 'Ab Work',     sets: 3, repsLow: 10, repsHigh: 15, lastWeight: 0, lastReps: [] },
+          ]
+        },
+        {
+          name: 'Bench Press', mainLift: 'bench',
+          supplemental: { type: 'bbs', liftKey: 'bench', sets: 10, reps: 5, pct: 'fsl' },
+          accessories: [
+            { name: 'DB Rows',  sets: 5, repsLow: 10, repsHigh: 15, lastWeight: 0, lastReps: [] },
+            { name: 'Curls',    sets: 3, repsLow: 10, repsHigh: 15, lastWeight: 0, lastReps: [] },
+          ]
+        },
+        {
+          name: 'Romanian Deadlift', mainLift: 'rdl',
+          supplemental: { type: 'bbs', liftKey: 'rdl', sets: 10, reps: 5, pct: 'fsl' },
+          accessories: [
+            { name: 'Lunges',              sets: 5, repsLow: 10, repsHigh: 15, lastWeight: 0, lastReps: [] },
+            { name: 'Hanging Leg Raise',   sets: 3, repsLow: 10, repsHigh: 15, lastWeight: 0, lastReps: [] },
+          ]
+        },
+      ]
+    },
+    triumvirate: {
+      id: 'triumvirate',
+      name: 'Triumvirate',
+      description: 'Minimalist: 5/3/1 + only 2 accessories per day (5x15 + 5x10)',
+      daysPerWeek: 4,
+      cycleWeeks: 3,
+      days: [
+        {
+          name: 'OHP', mainLift: 'ohp', supplemental: null,
+          accessories: [
+            { name: 'Dips',         sets: 5, repsLow: 15, repsHigh: 15, lastWeight: 0, lastReps: [] },
+            { name: 'Chin-ups',     sets: 5, repsLow: 10, repsHigh: 10, lastWeight: 0, lastReps: [] },
+          ]
+        },
+        {
+          name: 'Front Squat', mainLift: 'frontSquat', supplemental: null,
+          accessories: [
+            { name: 'Leg Press',    sets: 5, repsLow: 15, repsHigh: 15, lastWeight: 0, lastReps: [] },
+            { name: 'Leg Curls',    sets: 5, repsLow: 10, repsHigh: 10, lastWeight: 0, lastReps: [] },
+          ]
+        },
+        {
+          name: 'Bench Press', mainLift: 'bench', supplemental: null,
+          accessories: [
+            { name: 'DB Flyes',     sets: 5, repsLow: 15, repsHigh: 15, lastWeight: 0, lastReps: [] },
+            { name: 'DB Rows',      sets: 5, repsLow: 10, repsHigh: 10, lastWeight: 0, lastReps: [] },
+          ]
+        },
+        {
+          name: 'Romanian Deadlift', mainLift: 'rdl', supplemental: null,
+          accessories: [
+            { name: 'Good Mornings',      sets: 5, repsLow: 15, repsHigh: 15, lastWeight: 0, lastReps: [] },
+            { name: 'Hanging Leg Raise',  sets: 5, repsLow: 10, repsHigh: 10, lastWeight: 0, lastReps: [] },
+          ]
+        },
+      ]
+    },
+    btm: {
+      id: 'btm',
+      name: 'Building the Monolith',
+      description: '3-day high-volume challenge: widowmakers, 100-rep chin/dip sets (6-week program)',
+      daysPerWeek: 3,
+      cycleWeeks: 3,
+      days: [
+        {
+          name: 'Squat + Press', mainLift: 'frontSquat',
+          supplemental: { type: 'widowmaker', liftKey: 'frontSquat', sets: 1, reps: 20, pct: 0.50 },
+          accessories: [
+            { name: 'Chin-ups',     sets: 5, repsLow: 20, repsHigh: 20, lastWeight: 0, lastReps: [] },
+            { name: 'Dips',         sets: 5, repsLow: 20, repsHigh: 20, lastWeight: 0, lastReps: [] },
+            { name: 'Face Pulls',   sets: 5, repsLow: 20, repsHigh: 20, lastWeight: 0, lastReps: [] },
+          ]
+        },
+        {
+          name: 'Bench + Rows', mainLift: 'bench',
+          supplemental: { type: 'bbb', liftKey: 'bench', sets: 5, reps: 5, pct: 0.85 },
+          accessories: [
+            { name: 'DB Rows',             sets: 5, repsLow: 10, repsHigh: 20, lastWeight: 0, lastReps: [] },
+            { name: 'Curls',               sets: 4, repsLow: 10, repsHigh: 15, lastWeight: 0, lastReps: [] },
+            { name: 'Triceps Pushdowns',   sets: 4, repsLow: 10, repsHigh: 15, lastWeight: 0, lastReps: [] },
+          ]
+        },
+        {
+          name: 'Deadlift + Press', mainLift: 'rdl',
+          supplemental: { type: 'widowmaker', liftKey: 'frontSquat', sets: 1, reps: 20, pct: 0.50 },
+          accessories: [
+            { name: 'Chin-ups',             sets: 5, repsLow: 20, repsHigh: 20, lastWeight: 0, lastReps: [] },
+            { name: 'Shrugs',               sets: 5, repsLow: 20, repsHigh: 20, lastWeight: 0, lastReps: [] },
+            { name: 'Face Pulls',            sets: 5, repsLow: 20, repsHigh: 20, lastWeight: 0, lastReps: [] },
+          ]
+        },
+      ]
+    },
+    leviathan: {
+      id: 'leviathan',
+      name: 'Leviathan',
+      description: '5/3/1 + work to TM single, then 5x5 FSL for heavy singles focus',
+      daysPerWeek: 4,
+      cycleWeeks: 3,
+      days: [
+        {
+          name: 'OHP', mainLift: 'ohp',
+          supplemental: { type: 'fsl', liftKey: 'ohp', sets: 5, reps: 5, pct: 'fsl', tmSingle: true },
+          accessories: [
+            { name: 'Chin-ups / Rows',  sets: 5, repsLow: 10, repsHigh: 15, lastWeight: 0, lastReps: [] },
+            { name: 'Face Pulls',        sets: 3, repsLow: 15, repsHigh: 20, lastWeight: 0, lastReps: [] },
+          ]
+        },
+        {
+          name: 'Front Squat', mainLift: 'frontSquat',
+          supplemental: { type: 'fsl', liftKey: 'frontSquat', sets: 5, reps: 5, pct: 'fsl', tmSingle: true },
+          accessories: [
+            { name: 'Leg Curls',        sets: 5, repsLow: 10, repsHigh: 15, lastWeight: 0, lastReps: [] },
+            { name: 'Ab Work',          sets: 3, repsLow: 10, repsHigh: 15, lastWeight: 0, lastReps: [] },
+          ]
+        },
+        {
+          name: 'Bench Press', mainLift: 'bench',
+          supplemental: { type: 'fsl', liftKey: 'bench', sets: 5, reps: 5, pct: 'fsl', tmSingle: true },
+          accessories: [
+            { name: 'DB Rows',      sets: 5, repsLow: 10, repsHigh: 15, lastWeight: 0, lastReps: [] },
+            { name: 'Curls',        sets: 3, repsLow: 10, repsHigh: 15, lastWeight: 0, lastReps: [] },
+          ]
+        },
+        {
+          name: 'Romanian Deadlift', mainLift: 'rdl',
+          supplemental: { type: 'fsl', liftKey: 'rdl', sets: 5, reps: 5, pct: 'fsl', tmSingle: true },
+          accessories: [
+            { name: 'Lunges',              sets: 5, repsLow: 10, repsHigh: 15, lastWeight: 0, lastReps: [] },
+            { name: 'Hanging Leg Raise',   sets: 3, repsLow: 10, repsHigh: 15, lastWeight: 0, lastReps: [] },
+          ]
+        },
+      ]
+    },
+    godIsABeast: {
+      id: 'godIsABeast',
+      name: 'God Is a Beast',
+      description: 'Phased: BBS-style 10x5 in leader cycles, FSL 5x5 in anchor cycles',
+      daysPerWeek: 4,
+      cycleWeeks: 3,
+      days: [
+        {
+          name: 'OHP', mainLift: 'ohp',
+          supplemental: { type: 'bbs', liftKey: 'ohp', sets: 10, reps: 5, pct: 'fsl', phased: true },
+          accessories: [
+            { name: 'Chin-ups / Rows',  sets: 5, repsLow: 10, repsHigh: 15, lastWeight: 0, lastReps: [] },
+            { name: 'Face Pulls',        sets: 3, repsLow: 15, repsHigh: 20, lastWeight: 0, lastReps: [] },
+          ]
+        },
+        {
+          name: 'Front Squat', mainLift: 'frontSquat',
+          supplemental: { type: 'bbs', liftKey: 'frontSquat', sets: 10, reps: 5, pct: 'fsl', phased: true },
+          accessories: [
+            { name: 'Leg Curls',   sets: 5, repsLow: 10, repsHigh: 15, lastWeight: 0, lastReps: [] },
+            { name: 'Ab Work',     sets: 3, repsLow: 10, repsHigh: 15, lastWeight: 0, lastReps: [] },
+          ]
+        },
+        {
+          name: 'Bench Press', mainLift: 'bench',
+          supplemental: { type: 'bbs', liftKey: 'bench', sets: 10, reps: 5, pct: 'fsl', phased: true },
+          accessories: [
+            { name: 'DB Rows',   sets: 5, repsLow: 10, repsHigh: 15, lastWeight: 0, lastReps: [] },
+            { name: 'Curls',     sets: 3, repsLow: 10, repsHigh: 15, lastWeight: 0, lastReps: [] },
+          ]
+        },
+        {
+          name: 'Romanian Deadlift', mainLift: 'rdl',
+          supplemental: { type: 'bbs', liftKey: 'rdl', sets: 10, reps: 5, pct: 'fsl', phased: true },
+          accessories: [
+            { name: 'Lunges',              sets: 5, repsLow: 10, repsHigh: 15, lastWeight: 0, lastReps: [] },
+            { name: 'Hanging Leg Raise',   sets: 3, repsLow: 10, repsHigh: 15, lastWeight: 0, lastReps: [] },
+          ]
+        },
+      ]
+    },
+  };
+
   // ===== DEFAULT DATA =====
   const DEFAULT_DATA = {
-    version: 2,
-    settings: { units: 'lbs', includeDeload: false },
+    version: 3,
+    settings: { units: 'lbs', includeDeload: false, template: 'currentSplit' },
     lifts: {
       bench:      { name: 'Bench Press',       tm: 240, type: 'upper' },
       frontSquat: { name: 'Front Squat',       tm: 195, type: 'lower' },
@@ -404,6 +757,11 @@ const App = (() => {
       if (!data.version || data.version < 2) {
         data = { ...DEFAULT_DATA, ...data, version: 2 };
       }
+      if (data.version < 3) {
+        if (!data.settings.template) data.settings.template = 'currentSplit';
+        data.days.forEach(d => { if (!d.supplemental) d.supplemental = null; });
+        data.version = 3;
+      }
     } else {
       data = JSON.parse(JSON.stringify(DEFAULT_DATA));
       data.tmHistory.push({
@@ -443,6 +801,55 @@ const App = (() => {
       reps: s.reps,
       pct: Math.round(s.pct * 100),
     }));
+  }
+
+  function getSupplementalSets(supplemental, week) {
+    if (!supplemental) return [];
+    const liftTM = data.lifts[supplemental.liftKey].tm;
+    let pct, sets, reps, label;
+    // For God Is a Beast phased: leader cycles (odd) use BBS, anchor cycles (even) use FSL
+    let effectiveType = supplemental.type;
+    if (supplemental.phased) {
+      effectiveType = (data.currentCycle % 2 === 1) ? 'bbs' : 'fsl';
+    }
+    switch (effectiveType) {
+      case 'bbb':
+        pct = supplemental.pct;
+        sets = supplemental.sets;
+        reps = supplemental.reps;
+        label = 'BBB';
+        break;
+      case 'fsl':
+        pct = SCHEME[week][0].pct;
+        sets = supplemental.sets;
+        reps = supplemental.reps;
+        label = 'FSL';
+        break;
+      case 'bbs':
+        pct = SCHEME[week][0].pct;
+        sets = supplemental.sets;
+        reps = supplemental.reps;
+        label = 'BBS';
+        break;
+      case 'widowmaker':
+        pct = supplemental.pct;
+        sets = 1;
+        reps = 20;
+        label = 'Widowmaker';
+        break;
+      default:
+        return [];
+    }
+    const weight = roundWeight(liftTM * pct);
+    const result = [];
+    // TM single for Leviathan
+    if (supplemental.tmSingle) {
+      result.push({ weight: roundWeight(liftTM * 1.0), reps: 1, pct: 100, label: 'TM Single' });
+    }
+    for (let i = 0; i < sets; i++) {
+      result.push({ weight, reps, pct: Math.round(pct * 100), label });
+    }
+    return result;
   }
 
   function estimate1RM(weight, reps) {
@@ -541,7 +948,10 @@ const App = (() => {
   }
 
   function renderCycleBadge() {
-    document.getElementById('cycleBadge').textContent = `W${data.currentWeek} / C${data.currentCycle}`;
+    const tmpl = TEMPLATES[data.settings.template];
+    const tmplLabel = (tmpl && data.settings.template !== 'currentSplit') ? tmpl.name.split(' ').map(w => w[0]).join('') : '';
+    const prefix = tmplLabel ? tmplLabel + ' | ' : '';
+    document.getElementById('cycleBadge').textContent = `${prefix}W${data.currentWeek} / C${data.currentCycle}`;
   }
 
   function renderWeekSelector() {
@@ -572,18 +982,27 @@ const App = (() => {
     const warmup = getWarmupSets(lift.tm);
     const working = getWorkingSets(lift.tm, data.currentWeek);
 
+    const suppSets = getSupplementalSets(day.supplemental, data.currentWeek);
+
     // Initialize workout tracking state if needed
     const wKey = `${data.currentCycle}-${data.currentWeek}-${data.selectedDay}`;
     if (!workoutInProgress[wKey]) {
       workoutInProgress[wKey] = {
         setsCompleted: new Array(warmup.length + working.length).fill(false),
+        suppCompleted: new Array(suppSets.length).fill(false),
         amrapReps: '',
-        accWeights: day.accessories.map(a => a.lastWeight || 0),
+        accWeights: day.accessories.map(a => {
+          const w = a.lastWeight || 0;
+          return a.lastWeights ? [...a.lastWeights] : new Array(a.sets).fill(w);
+        }),
         accReps: day.accessories.map(a => new Array(a.sets).fill(0)),
-        accRepsManual: day.accessories.map(a => new Array(a.sets).fill(false)),
       };
     }
     const wp = workoutInProgress[wKey];
+    // Ensure suppCompleted array matches current supplemental sets length
+    if (!wp.suppCompleted || wp.suppCompleted.length !== suppSets.length) {
+      wp.suppCompleted = new Array(suppSets.length).fill(false);
+    }
 
     let html = '';
 
@@ -663,32 +1082,76 @@ const App = (() => {
       }
     }
 
+    // Supplemental
+    if (suppSets.length > 0) {
+      const suppLift = day.supplemental ? data.lifts[day.supplemental.liftKey] : lift;
+      const suppLabel = suppSets[0].label || 'Supplemental';
+      html += `<div class="card">
+        <div class="flex-between mb-8">
+          <div>
+            <div class="card-title supplemental-label">Supplemental <span class="supp-badge">${suppLabel}</span></div>
+            <div style="font-size:16px;font-weight:600">${suppLift.name}</div>
+          </div>
+        </div>
+        <div class="sets-section">`;
+      suppSets.forEach((s, i) => {
+        const done = wp.suppCompleted[i];
+        html += `<div class="set-row">
+          <div class="set-num">${i + 1}</div>
+          <div class="set-weight">
+            ${s.weight} ${data.settings.units}
+            <span class="plates">${calcPlates(s.weight)}</span>
+          </div>
+          <div class="set-reps">${s.pct}% x ${s.reps}</div>
+          <button class="set-check ${done ? 'done' : ''}" onclick="App.toggleSupp('${wKey}',${i})">
+            ${done ? '&#10003;' : ''}
+          </button>
+        </div>`;
+      });
+      html += `</div></div>`;
+    }
+
     // Accessories
     html += `<div class="card">
       <div class="card-title">Accessories</div>`;
     day.accessories.forEach((acc, ai) => {
       const repsLabel = acc.repsLow === acc.repsHigh ? acc.repsLow : `${acc.repsLow}-${acc.repsHigh}`;
       const suggestion = getAccSuggestion(acc);
+      // Ensure per-set weight array exists and matches set count
+      if (!Array.isArray(wp.accWeights[ai]) || wp.accWeights[ai].length !== acc.sets) {
+        const base = Array.isArray(wp.accWeights[ai]) ? wp.accWeights[ai] : [];
+        const fallback = base[0] || acc.lastWeight || 0;
+        wp.accWeights[ai] = new Array(acc.sets).fill(0).map((_, si) => base[si] !== undefined ? base[si] : fallback);
+      }
       html += `<div class="acc-item">
         <div class="acc-header">
           <div>
             <div class="acc-name">${acc.name}</div>
-            ${acc.lastWeight > 0 ? `<div class="acc-last">Last: ${acc.lastWeight} lbs</div>` : ''}
+            ${acc.lastWeights ? `<div class="acc-last">Last: ${[...new Set(acc.lastWeights)].map(w => w + ' lbs').join(' / ')}</div>` : (acc.lastWeight > 0 ? `<div class="acc-last">Last: ${acc.lastWeight} lbs</div>` : '')}
           </div>
           <div class="acc-target">${acc.sets} x ${repsLabel}</div>
         </div>
-        <div class="acc-inputs">
-          <label>Weight:</label>
-          <input type="text" inputmode="decimal" value="${wp.accWeights[ai] || ''}" placeholder="lbs"
-                 onchange="App.setAccWeight('${wKey}',${ai},this.value)" onfocus="this.select()">
-        </div>
-        <div class="acc-set-reps" id="accReps_${ai}">
-          <span class="text-xs text-muted" style="align-self:center;margin-right:2px">Reps:</span>`;
+        <div class="acc-set-table">
+          <div class="acc-set-row" style="padding-bottom:0">
+            <div class="acc-set-label"></div>
+            <div class="acc-input" style="border:none;background:none;color:var(--muted);font-size:11px;font-weight:700;height:auto">Weight</div>
+            <div class="acc-set-x"></div>
+            <div class="acc-input rp" style="border:none;background:none;color:var(--muted);font-size:11px;font-weight:700;height:auto">Reps</div>
+          </div>`;
       for (let si = 0; si < acc.sets; si++) {
+        const w = wp.accWeights[ai][si] || 0;
         const r = wp.accReps[ai][si] || 0;
-        html += `<input type="text" inputmode="numeric" class="acc-rep-btn ${r > 0 ? 'filled' : ''}"
-                   value="${r || ''}"
-                   onchange="App.setAccRep('${wKey}',${ai},${si},this.value)" onfocus="this.select()">`;
+        const filled = (w > 0 || r > 0) ? 'filled' : '';
+        html += `<div class="acc-set-row">
+            <div class="acc-set-label">S${si + 1}</div>
+            <input type="text" inputmode="decimal" class="acc-input wt ${filled}"
+                   value="${w || ''}" placeholder="lbs"
+                   onchange="App.setAccWeight('${wKey}',${ai},${si},this.value)" onfocus="this.select()">
+            <div class="acc-set-x">x</div>
+            <input type="text" inputmode="numeric" class="acc-input rp ${r > 0 ? 'filled' : ''}"
+                   value="${r || ''}" placeholder="${repsLabel}"
+                   onchange="App.setAccRep('${wKey}',${ai},${si},this.value)" onfocus="this.select()">
+          </div>`;
       }
       html += `</div>`;
       if (suggestion) {
@@ -714,11 +1177,12 @@ const App = (() => {
   }
 
   function getAccSuggestion(acc) {
-    if (!acc.lastWeight || acc.lastWeight <= 0 || !acc.lastReps || acc.lastReps.length === 0) return null;
+    if (!acc.lastReps || acc.lastReps.length === 0) return null;
+    const hasWeights = (acc.lastWeights && acc.lastWeights.some(w => w > 0)) || acc.lastWeight > 0;
+    if (!hasWeights) return null;
     const allAtTop = acc.lastReps.every(r => r >= acc.repsHigh);
     if (allAtTop) {
-      const newWeight = acc.lastWeight + 5;
-      return `Hit all top-range reps last time. Try ${newWeight} lbs this session.`;
+      return `Hit all top-range reps last time. Consider adding 5 lbs.`;
     }
     return null;
   }
@@ -736,7 +1200,9 @@ const App = (() => {
     let html = '<div class="card-title">Workout History</div>';
     const sorted = [...data.log].reverse();
     sorted.forEach((entry, idx) => {
-      const day = data.days[entry.dayIndex] || { name: 'Unknown' };
+      const day = (entry.template && TEMPLATES[entry.template] && TEMPLATES[entry.template].days[entry.dayIndex])
+        ? TEMPLATES[entry.template].days[entry.dayIndex]
+        : (data.days[entry.dayIndex] || { name: 'Unknown' });
       const topSet = entry.mainLift ? entry.mainLift.sets[entry.mainLift.sets.length - 1] : null;
       const amrap = entry.mainLift ? entry.mainLift.amrapReps : 0;
       const liftName = entry.mainLift ? (data.lifts[entry.mainLift.liftKey] || {}).name || '' : '';
@@ -761,17 +1227,37 @@ const App = (() => {
 
   function renderHistoryDetail(entry) {
     let html = '';
+    if (entry.template && entry.template !== 'currentSplit') {
+      const tmpl = TEMPLATES[entry.template];
+      html += `<div class="text-xs text-muted mb-8">Template: ${tmpl ? tmpl.name : entry.template}</div>`;
+    }
     if (entry.mainLift) {
       html += '<div class="mb-8"><strong>Main Lift Sets:</strong></div>';
       entry.mainLift.sets.forEach((s, i) => {
         html += `<div class="text-sm" style="margin-left:8px">${i + 1}. ${s.weight} x ${s.isAmrap ? entry.mainLift.amrapReps || s.reps : s.reps}</div>`;
       });
     }
+    if (entry.supplemental && entry.supplemental.sets && entry.supplemental.sets.length > 0) {
+      const suppLiftName = data.lifts[entry.supplemental.liftKey] ? data.lifts[entry.supplemental.liftKey].name : entry.supplemental.liftKey;
+      html += `<div class="mt-8 mb-8"><strong>Supplemental (${entry.supplemental.type.toUpperCase()}) - ${suppLiftName}:</strong></div>`;
+      entry.supplemental.sets.forEach((s, i) => {
+        html += `<div class="text-sm" style="margin-left:8px">${i + 1}. ${s.weight} x ${s.reps}</div>`;
+      });
+    }
     if (entry.accessories && entry.accessories.length > 0) {
       html += '<div class="mt-8 mb-8"><strong>Accessories:</strong></div>';
       entry.accessories.forEach(a => {
-        if (a.weight > 0 || a.reps.some(r => r > 0)) {
-          html += `<div class="text-sm" style="margin-left:8px">${a.name}: ${a.weight} lbs - ${a.reps.join(', ')} reps</div>`;
+        const hasData = (a.weights && a.weights.some(w => w > 0)) || a.weight > 0 || (a.reps && a.reps.some(r => r > 0));
+        if (hasData) {
+          if (a.weights && a.weights.length > 0) {
+            const setStrs = a.weights.map((w, i) => {
+              const r = a.reps && a.reps[i] ? a.reps[i] : '?';
+              return `${w}x${r}`;
+            }).filter((_, i) => (a.weights[i] > 0 || (a.reps && a.reps[i] > 0)));
+            html += `<div class="text-sm" style="margin-left:8px">${a.name}: ${setStrs.join(', ')}</div>`;
+          } else {
+            html += `<div class="text-sm" style="margin-left:8px">${a.name}: ${a.weight || 0} lbs - ${a.reps.join(', ')} reps</div>`;
+          }
         }
       });
     }
@@ -1040,7 +1526,7 @@ const App = (() => {
       </tr>`;
     }
     html += '</tbody></table>';
-    html += '<div class="text-xs text-muted mt-8">Based on standard 5/3/1 progression: +5 lbs/cycle (upper), +10 lbs/cycle (lower)</div>';
+    html += '<div class="text-xs text-muted mt-8">Based on standard 5/3/1 progression: +5 lbs/cycle (upper), +5-10 lbs/cycle (lower)</div>';
     html += '</div>';
 
     // Actual Progression Rate (if enough data)
@@ -1108,6 +1594,16 @@ const App = (() => {
     const cont = document.getElementById('settingsContent');
     let html = '';
 
+    // Program Template
+    const currentTmpl = TEMPLATES[data.settings.template] || TEMPLATES.currentSplit;
+    html += `<div class="card">
+      <div class="card-title">Program Template</div>
+      <div class="template-current">${currentTmpl.name}</div>
+      <div class="text-xs text-muted mb-8">${currentTmpl.description}</div>
+      <div class="text-xs text-muted mb-8">${currentTmpl.daysPerWeek} days/week</div>
+      <button class="btn btn-outline btn-sm" onclick="App.openTemplateSelector()">Change Template</button>
+    </div>`;
+
     // Training Maxes
     html += '<div class="card"><div class="card-title">Training Maxes</div>';
     for (const [key, lift] of Object.entries(data.lifts)) {
@@ -1147,7 +1643,7 @@ const App = (() => {
 
     // Advance Cycle
     html += `<div class="card"><div class="card-title">Cycle Management</div>
-      <p class="text-sm text-muted mb-8">Advance to the next cycle. This will increase your TMs automatically (+5 upper, +10 lower).</p>
+      <p class="text-sm text-muted mb-8">Advance to the next cycle. Choose how much to increase each training max.</p>
       <button class="btn btn-primary" onclick="App.advanceCycle()">Advance to Next Cycle</button>
     </div>`;
 
@@ -1205,8 +1701,17 @@ const App = (() => {
     if (!workoutInProgress[wKey]) return;
     workoutInProgress[wKey].setsCompleted[idx] = !workoutInProgress[wKey].setsCompleted[idx];
     renderWorkout();
-    // Start rest timer on check
     if (workoutInProgress[wKey].setsCompleted[idx]) {
+      startTimer(120);
+    }
+  }
+
+  function toggleSupp(wKey, idx) {
+    if (!workoutInProgress[wKey]) return;
+    if (!workoutInProgress[wKey].suppCompleted) return;
+    workoutInProgress[wKey].suppCompleted[idx] = !workoutInProgress[wKey].suppCompleted[idx];
+    renderWorkout();
+    if (workoutInProgress[wKey].suppCompleted[idx]) {
       startTimer(120);
     }
   }
@@ -1217,24 +1722,16 @@ const App = (() => {
     renderWorkout();
   }
 
-  function setAccWeight(wKey, accIdx, val) {
+  function setAccWeight(wKey, accIdx, setIdx, val) {
     if (!workoutInProgress[wKey]) return;
-    workoutInProgress[wKey].accWeights[accIdx] = parseFloat(val) || 0;
+    const wp = workoutInProgress[wKey];
+    if (!Array.isArray(wp.accWeights[accIdx])) wp.accWeights[accIdx] = [];
+    wp.accWeights[accIdx][setIdx] = parseFloat(val) || 0;
   }
 
   function setAccRep(wKey, accIdx, setIdx, val) {
     if (!workoutInProgress[wKey]) return;
-    const parsed = parseInt(val);
-    workoutInProgress[wKey].accReps[accIdx][setIdx] = parsed || 0;
-    workoutInProgress[wKey].accRepsManual[accIdx][setIdx] = val !== '' && !isNaN(parsed);
-    // Re-render the input to update classes without full re-render
-    const input = document.querySelector(`#accReps_${accIdx} input:nth-child(${setIdx + 2})`);
-    if (input) {
-      input.classList.remove('filled', 'prefilled');
-      if (val !== '' && !isNaN(parsed) && parsed > 0) {
-        input.classList.add('filled');
-      }
-    }
+    workoutInProgress[wKey].accReps[accIdx][setIdx] = parseInt(val) || 0;
   }
 
   function logWorkout(wKey) {
@@ -1245,12 +1742,15 @@ const App = (() => {
     const lift = data.lifts[day.mainLift];
     const working = getWorkingSets(lift.tm, data.currentWeek);
 
+    const suppSetsLog = getSupplementalSets(day.supplemental, data.currentWeek);
+
     const entry = {
       id: Date.now().toString(36),
       date: new Date().toISOString().slice(0, 10),
       dayIndex: data.selectedDay,
       cycle: data.currentCycle,
       week: data.currentWeek,
+      template: data.settings.template,
       mainLift: {
         liftKey: day.mainLift,
         tm: lift.tm,
@@ -1259,9 +1759,14 @@ const App = (() => {
           weight: s.weight, reps: s.reps, pct: s.pct, isAmrap: s.isAmrap,
         })),
       },
+      supplemental: suppSetsLog.length > 0 ? {
+        type: day.supplemental.type,
+        liftKey: day.supplemental.liftKey,
+        sets: suppSetsLog.map(s => ({ weight: s.weight, reps: s.reps })),
+      } : null,
       accessories: day.accessories.map((acc, ai) => ({
         name: acc.name,
-        weight: wp.accWeights[ai] || 0,
+        weights: Array.isArray(wp.accWeights[ai]) ? [...wp.accWeights[ai]] : [],
         reps: wp.accReps[ai] || [],
       })),
     };
@@ -1270,9 +1775,12 @@ const App = (() => {
 
     // Update last weights/reps on accessories for next time suggestions
     day.accessories.forEach((acc, ai) => {
-      const w = wp.accWeights[ai];
+      const ws = Array.isArray(wp.accWeights[ai]) ? wp.accWeights[ai] : [];
       const r = wp.accReps[ai];
-      if (w > 0) acc.lastWeight = w;
+      if (ws.some(w => w > 0)) {
+        acc.lastWeights = [...ws];
+        acc.lastWeight = ws[0] || 0;
+      }
       if (r && r.some(x => x > 0)) acc.lastReps = [...r];
     });
 
@@ -1289,26 +1797,54 @@ const App = (() => {
   }
 
   function advanceCycle() {
+    const opts = [0, 5, 10];
     showModal(`<h3>Advance to Cycle ${data.currentCycle + 1}?</h3>
-      <p class="text-sm text-muted mb-8">This will increase your training maxes:</p>
-      <div class="text-sm mb-16">
+      <p class="text-sm text-muted mb-8">Choose TM increase for each lift:</p>
+      <div style="margin-bottom:16px">
         ${Object.entries(data.lifts).map(([k, l]) => {
-          const inc = l.type === 'upper' ? 5 : 10;
-          return `<div class="flex-between" style="padding:4px 0">
-            <span>${l.name}</span>
-            <span>${l.tm} → <span class="text-success fw-700">${l.tm + inc}</span></span>
+          const defaultInc = l.type === 'upper' ? 5 : 5;
+          return `<div class="flex-between" style="padding:6px 0;border-bottom:1px solid var(--card-border)">
+            <div>
+              <div class="text-sm fw-700">${l.name}</div>
+              <div class="text-xs text-muted">${l.tm} lbs</div>
+            </div>
+            <select id="tmInc_${k}" style="width:90px;font-size:14px;padding:6px 8px"
+                    onchange="App.previewAdvance()">
+              ${opts.map(v => `<option value="${v}" ${v === defaultInc ? 'selected' : ''}>${v === 0 ? 'Keep' : '+' + v + ' lbs'}</option>`).join('')}
+            </select>
           </div>`;
         }).join('')}
       </div>
+      <div id="advancePreview" class="text-sm mb-16"></div>
       <div class="inline-btns">
         <button class="btn btn-outline" onclick="App.closeModal()">Cancel</button>
         <button class="btn btn-success" onclick="App.confirmAdvanceCycle()">Advance</button>
       </div>`);
+    previewAdvance();
+  }
+
+  function previewAdvance() {
+    const el = document.getElementById('advancePreview');
+    if (!el) return;
+    let html = '';
+    for (const [k, l] of Object.entries(data.lifts)) {
+      const sel = document.getElementById(`tmInc_${k}`);
+      const inc = sel ? parseInt(sel.value) : 0;
+      const newTM = l.tm + inc;
+      const arrow = inc > 0 ? `<span class="text-success fw-700">${newTM}</span>` : `<span class="text-muted">${newTM}</span>`;
+      html += `<div class="flex-between" style="padding:2px 0">
+        <span class="text-sm">${l.name}</span>
+        <span class="text-sm">${l.tm} → ${arrow}</span>
+      </div>`;
+    }
+    el.innerHTML = html;
   }
 
   function confirmAdvanceCycle() {
     for (const [key, lift] of Object.entries(data.lifts)) {
-      lift.tm += lift.type === 'upper' ? 5 : 10;
+      const sel = document.getElementById(`tmInc_${key}`);
+      const inc = sel ? parseInt(sel.value) : 0;
+      lift.tm += inc;
     }
     data.currentCycle++;
     data.currentWeek = 1;
@@ -1394,6 +1930,49 @@ const App = (() => {
     save();
     closeModal();
     renderWorkout();
+    renderSettings();
+  }
+
+  // ===== TEMPLATE SWITCHING =====
+  function openTemplateSelector() {
+    let html = '<h3>Choose Template</h3><div class="template-grid">';
+    for (const [key, tmpl] of Object.entries(TEMPLATES)) {
+      const selected = key === data.settings.template ? 'selected' : '';
+      html += `<div class="template-card ${selected}" onclick="App.confirmTemplatePick('${key}')">
+        <div class="template-card-name">${tmpl.name}</div>
+        <div class="template-card-desc">${tmpl.description}</div>
+        <div class="template-card-days">${tmpl.daysPerWeek} days/week</div>
+      </div>`;
+    }
+    html += '</div><button class="btn btn-outline" onclick="App.closeModal()">Cancel</button>';
+    showModal(html);
+  }
+
+  function confirmTemplatePick(templateId) {
+    if (templateId === data.settings.template) { closeModal(); return; }
+    const tmpl = TEMPLATES[templateId];
+    if (!tmpl) return;
+    showModal(`<h3>Switch to ${tmpl.name}?</h3>
+      <p class="text-sm text-muted mb-8">${tmpl.description}</p>
+      <p class="text-sm mb-16">Your training maxes and history will be preserved. Cycle/week will reset to 1.</p>
+      <div class="inline-btns">
+        <button class="btn btn-outline" onclick="App.openTemplateSelector()">Back</button>
+        <button class="btn btn-primary" onclick="App.applyTemplate('${templateId}')">Switch</button>
+      </div>`);
+  }
+
+  function applyTemplate(templateId) {
+    const tmpl = TEMPLATES[templateId];
+    if (!tmpl) return;
+    // Deep clone the template days so we don't mutate the constant
+    data.days = JSON.parse(JSON.stringify(tmpl.days));
+    data.settings.template = templateId;
+    data.currentWeek = 1;
+    data.selectedDay = 0;
+    workoutInProgress = {};
+    save();
+    closeModal();
+    render();
     renderSettings();
   }
 
@@ -1508,9 +2087,10 @@ const App = (() => {
 
   // Public API
   return {
-    selectDay, setWeek, setCycle, toggleSet, setAmrap, setAccWeight, setAccRep,
-    logWorkout, advanceCycle, confirmAdvanceCycle, updateTM, toggleDeload,
+    selectDay, setWeek, setCycle, toggleSet, toggleSupp, setAmrap, setAccWeight, setAccRep,
+    logWorkout, advanceCycle, previewAdvance, confirmAdvanceCycle, updateTM, toggleDeload,
     editAccessories, addAccessory, saveAccessories, toggleHistory,
+    openTemplateSelector, confirmTemplatePick, applyTemplate,
     startTimer, stopTimer, addTime,
     exportData, importData, resetData, confirmReset,
     showModal, closeModal,
