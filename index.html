@@ -142,7 +142,8 @@
       background: var(--input-bg); color: var(--text); font-size: 13px; font-weight: 600;
       text-align: center; padding: 0 4px;
     }
-    .acc-rep-btn.filled { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+    .acc-rep-btn.prefilled { background: var(--input-bg); border-color: var(--card-border); color: var(--muted); }
+    .acc-rep-btn.filled { background: #1a3a2a; border-color: var(--success); color: var(--success); }
     .acc-suggestion { font-size: 11px; color: var(--success); margin-top: 4px; font-weight: 600; }
 
     /* ===== HISTORY ===== */
@@ -582,6 +583,7 @@ const App = (() => {
           const mid = Math.round((a.repsLow + a.repsHigh) / 2);
           return new Array(a.sets).fill(a.lastReps && a.lastReps.length ? 0 : mid);
         }),
+        accRepsManual: day.accessories.map(a => new Array(a.sets).fill(false)),
       };
     }
     const wp = workoutInProgress[wKey];
@@ -633,8 +635,8 @@ const App = (() => {
           <span class="plates">${calcPlates(s.weight)}</span>
         </div>
         <div class="set-reps ${s.isAmrap ? 'amrap' : ''}">${s.pct}% x ${s.reps}</div>
-        ${s.isAmrap ? `<input type="number" class="amrap-input" placeholder="${s.reps}"
-          value="${wp.amrapReps}" min="0" max="30"
+        ${s.isAmrap ? `<input type="text" inputmode="numeric" class="amrap-input"
+          value="${wp.amrapReps}"
           onchange="App.setAmrap('${wKey}',this.value)"
           onfocus="this.select()">` : ''}
         <button class="set-check ${done ? 'done' : ''}" onclick="App.toggleSet('${wKey}',${idx})">
@@ -687,8 +689,10 @@ const App = (() => {
           <span class="text-xs text-muted" style="align-self:center;margin-right:2px">Reps:</span>`;
       for (let si = 0; si < acc.sets; si++) {
         const r = wp.accReps[ai][si] || 0;
-        html += `<input type="text" inputmode="numeric" class="acc-rep-btn ${r > 0 ? 'filled' : ''}"
-                   value="${r || ''}" placeholder="${repsLabel}"
+        const isManual = wp.accRepsManual[ai][si];
+        const cls = isManual ? 'filled' : (r > 0 ? 'prefilled' : '');
+        html += `<input type="text" inputmode="numeric" class="acc-rep-btn ${cls}"
+                   value="${r || ''}"
                    onchange="App.setAccRep('${wKey}',${ai},${si},this.value)" onfocus="this.select()">`;
       }
       html += `</div>`;
@@ -1225,9 +1229,17 @@ const App = (() => {
 
   function setAccRep(wKey, accIdx, setIdx, val) {
     if (!workoutInProgress[wKey]) return;
-    workoutInProgress[wKey].accReps[accIdx][setIdx] = parseInt(val) || 0;
-    const btn = document.querySelector(`#accReps_${accIdx} input:nth-child(${setIdx + 1})`);
-    if (btn) btn.classList.toggle('filled', parseInt(val) > 0);
+    const parsed = parseInt(val);
+    workoutInProgress[wKey].accReps[accIdx][setIdx] = parsed || 0;
+    workoutInProgress[wKey].accRepsManual[accIdx][setIdx] = val !== '' && !isNaN(parsed);
+    // Re-render the input to update classes without full re-render
+    const input = document.querySelector(`#accReps_${accIdx} input:nth-child(${setIdx + 2})`);
+    if (input) {
+      input.classList.remove('filled', 'prefilled');
+      if (val !== '' && !isNaN(parsed) && parsed > 0) {
+        input.classList.add('filled');
+      }
+    }
   }
 
   function logWorkout(wKey) {
