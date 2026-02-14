@@ -579,10 +579,7 @@ const App = (() => {
         setsCompleted: new Array(warmup.length + working.length).fill(false),
         amrapReps: '',
         accWeights: day.accessories.map(a => a.lastWeight || 0),
-        accReps: day.accessories.map(a => {
-          const mid = Math.round((a.repsLow + a.repsHigh) / 2);
-          return new Array(a.sets).fill(a.lastReps && a.lastReps.length ? 0 : mid);
-        }),
+        accReps: day.accessories.map(a => new Array(a.sets).fill(0)),
         accRepsManual: day.accessories.map(a => new Array(a.sets).fill(false)),
       };
     }
@@ -689,9 +686,7 @@ const App = (() => {
           <span class="text-xs text-muted" style="align-self:center;margin-right:2px">Reps:</span>`;
       for (let si = 0; si < acc.sets; si++) {
         const r = wp.accReps[ai][si] || 0;
-        const isManual = wp.accRepsManual[ai][si];
-        const cls = isManual ? 'filled' : (r > 0 ? 'prefilled' : '');
-        html += `<input type="text" inputmode="numeric" class="acc-rep-btn ${cls}"
+        html += `<input type="text" inputmode="numeric" class="acc-rep-btn ${r > 0 ? 'filled' : ''}"
                    value="${r || ''}"
                    onchange="App.setAccRep('${wKey}',${ai},${si},this.value)" onfocus="this.select()">`;
       }
