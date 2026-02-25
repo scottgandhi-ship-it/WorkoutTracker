@@ -753,6 +753,7 @@ const App = (() => {
   let data = {};
   let timerInterval = null;
   let timerSeconds = 0;
+  let timerEndTime = null;
   let workoutInProgress = {};
 
   // ===== STORAGE =====
@@ -917,28 +918,38 @@ const App = (() => {
 
   // ===== TIMER =====
   function startTimer(seconds = 120) {
+    timerEndTime = Date.now() + seconds * 1000;
     timerSeconds = seconds;
     document.getElementById('timerOverlay').classList.add('show');
     document.body.classList.add('timer-active');
     updateTimerDisplay();
     clearInterval(timerInterval);
-    timerInterval = setInterval(() => {
-      timerSeconds--;
-      updateTimerDisplay();
-      if (timerSeconds <= 0) {
-        stopTimer();
-        if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-      }
-    }, 1000);
+    timerInterval = setInterval(timerTick, 1000);
+  }
+
+  function timerTick() {
+    timerSeconds = Math.ceil((timerEndTime - Date.now()) / 1000);
+    updateTimerDisplay();
+    if (timerSeconds <= 0) {
+      stopTimer();
+      if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+    }
   }
 
   function stopTimer() {
     clearInterval(timerInterval);
+    timerEndTime = null;
     document.getElementById('timerOverlay').classList.remove('show');
     document.body.classList.remove('timer-active');
   }
 
-  function addTime(sec) { timerSeconds += sec; updateTimerDisplay(); }
+  function addTime(sec) { timerEndTime += sec * 1000; timerSeconds += sec; updateTimerDisplay(); }
+
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && timerEndTime !== null) {
+      timerTick();
+    }
+  });
 
   function updateTimerDisplay() {
     const m = Math.floor(Math.abs(timerSeconds) / 60);
