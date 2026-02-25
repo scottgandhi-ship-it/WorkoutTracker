@@ -153,6 +153,40 @@
     .acc-timer-btn:active { background: var(--accent-dim); color: #fff; border-color: var(--accent); }
     .acc-suggestion { font-size: 11px; color: var(--success); margin-top: 4px; font-weight: 600; }
 
+    /* ===== QUICK LOG ===== */
+    .quick-log-link {
+      display: block; text-align: center; margin-top: 12px;
+      color: var(--muted); font-size: 13px; font-weight: 600;
+      cursor: pointer; padding: 8px; transition: color 0.2s;
+    }
+    .quick-log-link:active { color: var(--accent); }
+    .ql-field { margin-bottom: 14px; }
+    .ql-field label { display: block; font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; margin-bottom: 6px; }
+    .ql-day-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+    .ql-day-btn {
+      flex: 1; min-width: 0; padding: 10px 4px; border: 1px solid var(--card-border);
+      border-radius: 8px; background: var(--card); color: var(--text);
+      font-size: 12px; font-weight: 600; text-align: center; cursor: pointer; transition: all 0.2s;
+    }
+    .ql-day-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .ql-week-grid { display: flex; gap: 6px; }
+    .ql-week-btn {
+      flex: 1; padding: 8px; border: 1px solid var(--card-border);
+      border-radius: 8px; background: var(--card); color: var(--text);
+      font-size: 12px; font-weight: 600; text-align: center; cursor: pointer; transition: all 0.2s;
+    }
+    .ql-week-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .ql-summary {
+      background: var(--input-bg); border-radius: 8px; padding: 12px;
+      margin-bottom: 14px; font-size: 13px; line-height: 1.5;
+    }
+    .ql-summary .lift-name { font-weight: 700; color: var(--accent); }
+    .ql-summary .top-set { color: var(--warning); font-weight: 700; }
+    .ql-badge {
+      display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 6px;
+      border-radius: 4px; background: var(--accent-dim); color: var(--accent); margin-left: 6px; vertical-align: middle;
+    }
+
     /* ===== HISTORY ===== */
     .history-item { cursor: pointer; transition: background 0.2s; }
     .history-item:active { background: var(--input-bg); }
@@ -1246,6 +1280,9 @@ const App = (() => {
       <button class="btn btn-outline btn-sm" onclick="App.startTimer(180)">Rest 3:00</button>
     </div>`;
 
+    // Quick Log fallback link
+    html += `<div class="quick-log-link" onclick="App.showQuickLog()">Forgot to log a workout?</div>`;
+
     cont.innerHTML = html;
   }
 
@@ -1288,6 +1325,7 @@ const App = (() => {
             <div class="history-day">${day.name}</div>
             ${topSet ? `<div class="history-lift">${liftName}: ${topSet.weight} x ${amrap || topSet.reps}${e1rm ? ` (e1RM: ${e1rm})` : ''}</div>` : ''}
           </div>
+          ${entry.quickLog ? '<span class="ql-badge">Quick Log</span>' : ''}
           <div class="cycle-badge" style="font-size:11px">W${entry.week}/C${entry.cycle}</div>
         </div>
         <div class="history-detail" id="histDetail_${idx}">
@@ -1869,6 +1907,136 @@ const App = (() => {
     renderWorkout();
   }
 
+  // ===== QUICK LOG (FALLBACK) =====
+  let qlState = { dayIndex: 0, week: 1 };
+
+  function showQuickLog() {
+    qlState = { dayIndex: data.selectedDay, week: data.currentWeek };
+    const today = new Date().toISOString().slice(0, 10);
+    const weeks = data.settings.includeDeload ? [1,2,3,4] : [1,2,3];
+    const weekLabels = { 1: 'W1 (5s)', 2: 'W2 (3s)', 3: 'W3 (1s)', 4: 'Deload' };
+
+    let html = `<h3>Quick Log</h3>
+      <p class="text-xs text-muted mb-16">Log just the main lift from a past workout.</p>
+      <div class="ql-field">
+        <label>Date</label>
+        <input type="date" id="qlDate" value="${today}" max="${today}"
+               style="background:var(--input-bg);border:1px solid var(--card-border);color:var(--text);border-radius:8px;padding:10px 12px;font-size:15px;width:100%">
+      </div>
+      <div class="ql-field">
+        <label>Week</label>
+        <div class="ql-week-grid">
+          ${weeks.map(w => `<button class="ql-week-btn ${w === qlState.week ? 'active' : ''}"
+            onclick="App.qlSetWeek(${w})">${weekLabels[w]}</button>`).join('')}
+        </div>
+      </div>
+      <div class="ql-field">
+        <label>Day</label>
+        <div class="ql-day-grid">
+          ${data.days.map((d, i) => `<button class="ql-day-btn ${i === qlState.dayIndex ? 'active' : ''}"
+            onclick="App.qlSetDay(${i})">${d.name.split(' & ')[0]}</button>`).join('')}
+        </div>
+      </div>
+      <div id="qlPreview"></div>
+      <div class="ql-field">
+        <label>AMRAP Reps (top set)</label>
+        <input type="text" inputmode="numeric" id="qlAmrap" placeholder="e.g. 8"
+               style="text-align:center;font-size:18px;font-weight:700;border:2px solid var(--warning);color:var(--warning)"
+               oninput="App.updateQuickLogPreview()">
+      </div>
+      <div class="inline-btns">
+        <button class="btn btn-outline" onclick="App.closeModal()">Cancel</button>
+        <button class="btn btn-success" onclick="App.submitQuickLog()">Log Workout</button>
+      </div>`;
+    showModal(html);
+    updateQuickLogPreview();
+  }
+
+  function qlSetDay(idx) {
+    qlState.dayIndex = idx;
+    document.querySelectorAll('.ql-day-btn').forEach((btn, i) => {
+      btn.classList.toggle('active', i === idx);
+    });
+    updateQuickLogPreview();
+  }
+
+  function qlSetWeek(w) {
+    qlState.week = w;
+    document.querySelectorAll('.ql-week-btn').forEach(btn => {
+      btn.classList.toggle('active', parseInt(btn.textContent.match(/\d/)) === w);
+    });
+    updateQuickLogPreview();
+  }
+
+  function updateQuickLogPreview() {
+    const el = document.getElementById('qlPreview');
+    if (!el) return;
+    const day = data.days[qlState.dayIndex];
+    const lift = data.lifts[day.mainLift];
+    const working = getWorkingSets(lift.tm, qlState.week);
+    const topSet = working[working.length - 1];
+
+    const amrapEl = document.getElementById('qlAmrap');
+    const reps = amrapEl ? parseInt(amrapEl.value) || 0 : 0;
+    const e1rmHtml = reps > 0
+      ? `<div style="margin-top:6px">Estimated 1RM: <span class="top-set">${estimate1RM(topSet.weight, reps)} ${data.settings.units}</span></div>`
+      : '';
+
+    el.innerHTML = `<div class="ql-summary">
+      <span class="lift-name">${lift.name}</span> — TM ${lift.tm} ${data.settings.units}<br>
+      Top set: <span class="top-set">${topSet.weight} ${data.settings.units} x ${topSet.reps}</span>
+      ${e1rmHtml}
+    </div>`;
+  }
+
+  function submitQuickLog() {
+    const dateEl = document.getElementById('qlDate');
+    const amrapEl = document.getElementById('qlAmrap');
+    const logDate = dateEl ? dateEl.value : new Date().toISOString().slice(0, 10);
+    const amrapReps = amrapEl ? parseInt(amrapEl.value) || 0 : 0;
+
+    const day = data.days[qlState.dayIndex];
+    const lift = data.lifts[day.mainLift];
+    const working = getWorkingSets(lift.tm, qlState.week);
+    const suppSetsLog = getSupplementalSets(day.supplemental, qlState.week);
+
+    const entry = {
+      id: Date.now().toString(36),
+      date: logDate,
+      dayIndex: qlState.dayIndex,
+      cycle: data.currentCycle,
+      week: qlState.week,
+      template: data.settings.template,
+      quickLog: true,
+      mainLift: {
+        liftKey: day.mainLift,
+        tm: lift.tm,
+        amrapReps: amrapReps,
+        sets: working.map(s => ({
+          weight: s.weight, reps: s.reps, pct: s.pct, isAmrap: s.isAmrap,
+        })),
+      },
+      supplemental: suppSetsLog.length > 0 ? {
+        type: day.supplemental.type,
+        liftKey: day.supplemental.liftKey,
+        sets: suppSetsLog.map(s => ({ weight: s.weight, reps: s.reps })),
+      } : null,
+      accessories: [],
+    };
+
+    data.log.push(entry);
+    save();
+    closeModal();
+
+    const topSet = working[working.length - 1];
+    showModal(`<h3>Workout Logged!</h3>
+      <p class="text-sm text-muted">${day.name} - Week ${qlState.week}, Cycle ${data.currentCycle}</p>
+      <p class="text-xs text-muted">Logged via Quick Log for ${formatDate(logDate)}</p>
+      ${amrapReps > 0 ? `<p class="mt-8">AMRAP: ${topSet.weight} x ${amrapReps}<br>
+      <span class="text-warning fw-700">Estimated 1RM: ${estimate1RM(topSet.weight, amrapReps)} ${data.settings.units}</span></p>` : ''}
+      <button class="btn btn-primary" onclick="App.closeModal()">OK</button>`);
+  }
+
   function advanceCycle() {
     const opts = [0, 5, 10];
     showModal(`<h3>Advance to Cycle ${data.currentCycle + 1}?</h3>
@@ -2203,6 +2371,7 @@ const App = (() => {
     logWorkout, advanceCycle, previewAdvance, confirmAdvanceCycle, updateTM, toggleDeload,
     editAccessories, addAccessory, saveAccessories, toggleHistory,
     openTemplateSelector, confirmTemplatePick, applyTemplate,
+    showQuickLog, qlSetDay, qlSetWeek, updateQuickLogPreview, submitQuickLog,
     startTimer, stopTimer, addTime,
     exportData, importData, resetData, confirmReset,
     showModal, closeModal,
