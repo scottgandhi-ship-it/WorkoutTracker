@@ -752,7 +752,9 @@ const App = (() => {
   // ===== STATE =====
   let data = {};
   let timerInterval = null;
-  let timerSeconds = 0;
+  let timerEndTime = 0;
+  let timerHasVibrated = false;
+  let notificationTimeout = null;
   let workoutInProgress = {};
 
   // ===== STORAGE =====
@@ -916,36 +918,100 @@ const App = (() => {
   }
 
   // ===== TIMER =====
+  function getTimerRemaining() {
+    return Math.ceil((timerEndTime - Date.now()) / 1000);
+  }
+
+  function timerTick() {
+    const remaining = getTimerRemaining();
+    updateTimerDisplay(remaining);
+    if (remaining <= 0 && !timerHasVibrated) {
+      timerHasVibrated = true;
+      persistTimer();
+      if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+    }
+  }
+
+  function persistTimer() {
+    localStorage.setItem('531timer', JSON.stringify({ endTime: timerEndTime, hasVibrated: timerHasVibrated }));
+  }
+
+  function clearPersistedTimer() {
+    localStorage.removeItem('531timer');
+  }
+
+  function loadPersistedTimer() {
+    try {
+      const raw = localStorage.getItem('531timer');
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed.endTime) return null;
+      return parsed;
+    } catch { return null; }
+  }
+
+  function requestNotificationPermission() {
+    if (!('Notification' in window)) return;
+    if (Notification.permission === 'default') {
+      Notification.requestPermission().catch(() => {});
+    }
+  }
+
+  function scheduleNotification(seconds) {
+    cancelNotification();
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    notificationTimeout = setTimeout(() => {
+      try { new Notification('Rest Complete', { body: 'Time to get back to work!', icon: './icon-192.png' }); } catch {}
+    }, seconds * 1000);
+  }
+
+  function cancelNotification() {
+    if (notificationTimeout) { clearTimeout(notificationTimeout); notificationTimeout = null; }
+  }
+
   function startTimer(seconds = 120) {
-    timerSeconds = seconds;
+    timerEndTime = Date.now() + (seconds * 1000);
+    timerHasVibrated = false;
+    persistTimer();
     document.getElementById('timerOverlay').classList.add('show');
     document.body.classList.add('timer-active');
-    updateTimerDisplay();
+    updateTimerDisplay(seconds);
     clearInterval(timerInterval);
-    timerInterval = setInterval(() => {
-      timerSeconds--;
-      updateTimerDisplay();
-      if (timerSeconds <= 0) {
-        stopTimer();
-        if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-      }
-    }, 1000);
+    timerInterval = setInterval(timerTick, 1000);
+    requestNotificationPermission();
+    scheduleNotification(seconds);
   }
 
   function stopTimer() {
     clearInterval(timerInterval);
+    timerInterval = null;
+    timerEndTime = 0;
+    timerHasVibrated = false;
+    clearPersistedTimer();
+    cancelNotification();
     document.getElementById('timerOverlay').classList.remove('show');
     document.body.classList.remove('timer-active');
   }
 
-  function addTime(sec) { timerSeconds += sec; updateTimerDisplay(); }
+  function addTime(sec) {
+    timerEndTime += sec * 1000;
+    const remaining = getTimerRemaining();
+    if (remaining > 0 && timerHasVibrated) {
+      timerHasVibrated = false;
+      scheduleNotification(remaining);
+    }
+    persistTimer();
+    updateTimerDisplay(remaining);
+  }
 
-  function updateTimerDisplay() {
-    const m = Math.floor(Math.abs(timerSeconds) / 60);
-    const s = Math.abs(timerSeconds) % 60;
-    const prefix = timerSeconds < 0 ? '-' : '';
+  function updateTimerDisplay(remaining) {
+    if (remaining === undefined) remaining = getTimerRemaining();
+    const abs = Math.abs(remaining);
+    const m = Math.floor(abs / 60);
+    const s = abs % 60;
+    const prefix = remaining < 0 ? '-' : '';
     document.getElementById('timerDisplay').textContent = `${prefix}${m}:${s.toString().padStart(2, '0')}`;
-    document.getElementById('timerDisplay').style.color = timerSeconds <= 0 ? '#f87171' : '#f5f5f5';
+    document.getElementById('timerDisplay').style.color = remaining <= 0 ? '#f87171' : '#f5f5f5';
   }
 
   // ===== UI RENDERING =====
@@ -2083,6 +2149,45 @@ const App = (() => {
     });
 
     render();
+
+    // Recover persisted timer from localStorage
+    const saved = loadPersistedTimer();
+    if (saved) {
+      const elapsed = Date.now() - saved.endTime;
+      if (elapsed > 10 * 60 * 1000) {
+        // Timer expired more than 10 minutes ago — discard
+        clearPersistedTimer();
+      } else {
+        timerEndTime = saved.endTime;
+        timerHasVibrated = saved.hasVibrated || false;
+        const remaining = getTimerRemaining();
+        document.getElementById('timerOverlay').classList.add('show');
+        document.body.classList.add('timer-active');
+        updateTimerDisplay(remaining);
+        if (remaining <= 0 && !timerHasVibrated) {
+          timerHasVibrated = true;
+          persistTimer();
+          if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+        }
+        timerInterval = setInterval(timerTick, 1000);
+      }
+    }
+
+    // Re-sync timer when app returns to foreground
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && timerEndTime > 0) {
+        const remaining = getTimerRemaining();
+        updateTimerDisplay(remaining);
+        if (remaining <= 0 && !timerHasVibrated) {
+          timerHasVibrated = true;
+          persistTimer();
+          if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+        }
+        // Restart interval defensively — OS may have killed it
+        clearInterval(timerInterval);
+        timerInterval = setInterval(timerTick, 1000);
+      }
+    });
   }
 
   document.addEventListener('DOMContentLoaded', init);
