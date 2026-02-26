@@ -259,7 +259,7 @@
       justify-content: center; padding: 20px;
     }
     .modal-overlay.show { display: flex; }
-    .modal { background: var(--card); border-radius: 16px; padding: 24px; width: 100%; max-width: 360px; }
+    .modal { background: var(--card); border-radius: 16px; padding: 24px; width: 100%; max-width: 360px; max-height: calc(100vh - 40px); overflow-y: auto; }
     .modal h3 { font-size: 18px; margin-bottom: 16px; }
     .modal .btn { margin-top: 10px; }
 
@@ -1927,7 +1927,7 @@ const App = (() => {
         <label>Week</label>
         <div class="ql-week-grid">
           ${weeks.map(w => `<button class="ql-week-btn ${w === qlState.week ? 'active' : ''}"
-            onclick="App.qlSetWeek(${w})">${weekLabels[w]}</button>`).join('')}
+            data-week="${w}" onclick="App.qlSetWeek(${w})">${weekLabels[w]}</button>`).join('')}
         </div>
       </div>
       <div class="ql-field">
@@ -1938,11 +1938,14 @@ const App = (() => {
         </div>
       </div>
       <div id="qlPreview"></div>
-      <div class="ql-field">
+      <div class="ql-field" id="qlAmrapField" style="${qlState.week === 4 ? 'display:none' : ''}">
         <label>AMRAP Reps (top set)</label>
         <input type="text" inputmode="numeric" id="qlAmrap" placeholder="e.g. 8"
                style="text-align:center;font-size:18px;font-weight:700;border:2px solid var(--warning);color:var(--warning)"
                oninput="App.updateQuickLogPreview()">
+      </div>
+      <div id="qlDeloadNote" class="text-xs text-muted" style="margin-bottom:12px;${qlState.week === 4 ? '' : 'display:none'}">
+        Deload week — no AMRAP set.
       </div>
       <div class="inline-btns">
         <button class="btn btn-outline" onclick="App.closeModal()">Cancel</button>
@@ -1963,8 +1966,12 @@ const App = (() => {
   function qlSetWeek(w) {
     qlState.week = w;
     document.querySelectorAll('.ql-week-btn').forEach(btn => {
-      btn.classList.toggle('active', parseInt(btn.textContent.match(/\d/)) === w);
+      btn.classList.toggle('active', parseInt(btn.dataset.week) === w);
     });
+    const amrapField = document.getElementById('qlAmrapField');
+    const deloadNote = document.getElementById('qlDeloadNote');
+    if (amrapField) amrapField.style.display = w === 4 ? 'none' : '';
+    if (deloadNote) deloadNote.style.display = w === 4 ? '' : 'none';
     updateQuickLogPreview();
   }
 
@@ -1993,6 +2000,10 @@ const App = (() => {
     const dateEl = document.getElementById('qlDate');
     const amrapEl = document.getElementById('qlAmrap');
     const logDate = dateEl ? dateEl.value : new Date().toISOString().slice(0, 10);
+    if (!logDate || isNaN(new Date(logDate + 'T00:00:00').getTime())) {
+      dateEl && (dateEl.style.borderColor = 'var(--danger)');
+      return;
+    }
     const amrapReps = amrapEl ? parseInt(amrapEl.value) || 0 : 0;
 
     const day = data.days[qlState.dayIndex];
@@ -2024,7 +2035,13 @@ const App = (() => {
       accessories: [],
     };
 
-    data.log.push(entry);
+    // Insert in date-sorted position so backdated entries don't corrupt e1RM estimates
+    let insertIdx = data.log.length;
+    for (let i = data.log.length - 1; i >= 0; i--) {
+      if (data.log[i].date <= logDate) { insertIdx = i + 1; break; }
+      if (i === 0) insertIdx = 0;
+    }
+    data.log.splice(insertIdx, 0, entry);
     save();
     closeModal();
 
