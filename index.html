@@ -260,6 +260,14 @@
     .chart-legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 10px; justify-content: center; }
     .chart-legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; }
     .chart-legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .time-toggle { display: flex; gap: 4px; background: var(--surface-elevated); border-radius: var(--radius-sm); padding: 3px; margin-bottom: 16px; }
+    .time-toggle-btn {
+      flex: 1; padding: 8px 4px; border: none; border-radius: 8px;
+      background: none; color: var(--text-secondary); font-size: 13px; font-weight: 600;
+      cursor: pointer; transition: all var(--transition); text-align: center;
+    }
+    .time-toggle-btn:active { transform: scale(0.95); }
+    .time-toggle-btn.active { background: var(--accent-dim); color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 
     /* ===== SETTINGS ===== */
     .setting-group { margin-bottom: 24px; }
@@ -845,6 +853,7 @@ const App = (() => {
   let timerHasVibrated = false;
   let notificationTimeout = null;
   let workoutInProgress = {};
+  let progressMonths = 9; // default projection range: 3, 6, 9, or 12
 
   // ===== STORAGE =====
   function save() { localStorage.setItem('531tracker', JSON.stringify(data)); }
@@ -1454,9 +1463,10 @@ const App = (() => {
     const liftKeys = Object.keys(data.lifts);
 
     // Build data: past TM history points + future projections
-    // Months on X-axis: past history + 9 months into future
     const now = new Date();
-    const timePoints = [0, 3, 6, 9]; // months from now for projections
+    const projMonths = progressMonths;
+    const timePoints = [0];
+    for (let m = 3; m <= projMonths; m += 3) timePoints.push(m);
 
     // Collect all TM history dates as months-from-now (negative = past)
     const historyMonths = data.tmHistory.map(h => {
@@ -1486,7 +1496,7 @@ const App = (() => {
       allValues.push(currentE1rm);
       allMonths.push(0);
       // Future projections
-      for (const m of [3, 6, 9]) {
+      for (const m of timePoints.slice(1)) {
         const proj = project1RM(currentE1rm, data.lifts[key].type, m);
         points.push({ month: m, value: proj, type: 'projection' });
         allValues.push(proj);
@@ -1502,7 +1512,7 @@ const App = (() => {
     const chartW = W - padding.left - padding.right;
     const chartH = H - padding.top - padding.bottom;
     const minMonth = Math.min(...allMonths, -1);
-    const maxMonth = Math.max(...allMonths, 9);
+    const maxMonth = Math.max(...allMonths, projMonths);
     const minVal = Math.min(...allValues) - 15;
     const maxVal = Math.max(...allValues) + 15;
 
@@ -1547,7 +1557,7 @@ const App = (() => {
     ctx.fillText('Now', nowX, H - padding.bottom + 14);
 
     // Month labels on X-axis
-    for (const m of [3, 6, 9]) {
+    for (const m of timePoints.slice(1)) {
       ctx.fillStyle = '#6e6e80';
       ctx.fillText(`+${m}mo`, xPos(m), H - padding.bottom + 14);
     }
@@ -1638,6 +1648,13 @@ const App = (() => {
     const e1rms = getEstimated1RMs();
     let html = '';
 
+    // Time range toggle
+    html += '<div class="time-toggle">';
+    for (const m of [3, 6, 9, 12]) {
+      html += `<button class="time-toggle-btn ${progressMonths === m ? 'active' : ''}" onclick="App.setProgressRange(${m})">${m} mo</button>`;
+    }
+    html += '</div>';
+
     // Current 1RM Estimates
     html += '<div class="card-title">Estimated 1 Rep Maxes</div>';
     html += '<div class="stat-grid">';
@@ -1675,21 +1692,19 @@ const App = (() => {
     html += '</div>';
 
     // Projections Table
+    const projSteps = [];
+    for (let m = 3; m <= progressMonths; m += 3) projSteps.push(m);
     html += '<div class="card"><div class="card-title">1RM Projections</div>';
     html += '<table class="projection-table"><thead><tr>';
-    html += '<th>Lift</th><th>Now</th><th>3 mo</th><th>6 mo</th><th>9 mo</th>';
+    html += '<th>Lift</th><th>Now</th>';
+    for (const m of projSteps) html += `<th>${m} mo</th>`;
     html += '</tr></thead><tbody>';
     for (const [key, info] of Object.entries(e1rms)) {
-      const p3 = project1RM(info.e1rm, info.type, 3);
-      const p6 = project1RM(info.e1rm, info.type, 6);
-      const p9 = project1RM(info.e1rm, info.type, 9);
-      html += `<tr>
-        <td class="fw-700">${info.name}</td>
-        <td>${info.e1rm}</td>
-        <td class="trend-up">${p3}</td>
-        <td class="trend-up">${p6}</td>
-        <td class="trend-up">${p9}</td>
-      </tr>`;
+      html += `<tr><td class="fw-700">${info.name}</td><td>${info.e1rm}</td>`;
+      for (const m of projSteps) {
+        html += `<td class="trend-up">${project1RM(info.e1rm, info.type, m)}</td>`;
+      }
+      html += '</tr>';
     }
     html += '</tbody></table>';
     html += '<div class="text-xs text-muted mt-8">Based on standard 5/3/1 progression: +5 lbs/cycle (upper), +5-10 lbs/cycle (lower)</div>';
@@ -1713,18 +1728,17 @@ const App = (() => {
       // Data-driven projections
       html += '<div class="mt-12"><div class="sets-label">Data-Driven 1RM Projections</div></div>';
       html += '<table class="projection-table"><thead><tr>';
-      html += '<th>Lift</th><th>Now</th><th>3 mo</th><th>6 mo</th><th>9 mo</th>';
+      html += '<th>Lift</th><th>Now</th>';
+      for (const m of projSteps) html += `<th>${m} mo</th>`;
       html += '</tr></thead><tbody>';
       for (const [key, info] of Object.entries(e1rms)) {
         const rate = rates.rates[key] || 0;
         const monthlyE1rmRate = rate / 0.9; // approximate
-        html += `<tr>
-          <td class="fw-700">${info.name}</td>
-          <td>${info.e1rm}</td>
-          <td class="trend-up">${Math.round(info.e1rm + monthlyE1rmRate * 3)}</td>
-          <td class="trend-up">${Math.round(info.e1rm + monthlyE1rmRate * 6)}</td>
-          <td class="trend-up">${Math.round(info.e1rm + monthlyE1rmRate * 9)}</td>
-        </tr>`;
+        html += `<tr><td class="fw-700">${info.name}</td><td>${info.e1rm}</td>`;
+        for (const m of projSteps) {
+          html += `<td class="trend-up">${Math.round(info.e1rm + monthlyE1rmRate * m)}</td>`;
+        }
+        html += '</tr>';
       }
       html += '</tbody></table>';
       html += '<div class="text-xs text-muted mt-8">Based on your actual TM progression history</div>';
@@ -2189,6 +2203,11 @@ const App = (() => {
     renderWeekSelector();
   }
 
+  function setProgressRange(months) {
+    progressMonths = months;
+    renderProgress();
+  }
+
   function editAccessories(dayIdx) {
     const day = data.days[dayIdx];
     let html = `<h3>Edit ${day.name} Accessories</h3>
@@ -2441,7 +2460,7 @@ const App = (() => {
   return {
     selectDay, setWeek, setCycle, toggleSet, toggleSupp, setAmrap, setAccWeight, setAccRep,
     logWorkout, advanceCycle, previewAdvance, confirmAdvanceCycle, updateTM, toggleDeload,
-    editAccessories, addAccessory, saveAccessories, toggleHistory,
+    editAccessories, addAccessory, saveAccessories, toggleHistory, setProgressRange,
     openTemplateSelector, confirmTemplatePick, applyTemplate,
     showQuickLog, qlSetDay, qlSetWeek, updateQuickLogPreview, submitQuickLog,
     startTimer, stopTimer, addTime,
